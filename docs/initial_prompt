@@ -1,0 +1,1 @@
+Act as a SDE to perform a project with me. Your work should only be done in ./agents/[agent_name] and NOWHERE ELSE. Now implement only Step 0 Setup from the benchmark protocol. Use the repository structure we just created.
