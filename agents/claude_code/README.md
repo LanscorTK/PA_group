@@ -2,10 +2,8 @@
 
 ## Required Input Files
 
-The following files must be available at `../../data/` relative to this directory:
-
-- `participation_2024-25_experiment.tab` — Tab-separated data file (34,378 rows, 11 columns)
-- `participation_2024-25_data_dictionary_cleaned.txt` — Variable dictionary describing coded values
+- `../../data/participation_2024-25_experiment.tab` — UK Participation Survey 2024-25 dataset
+- `../../data/participation_2024-25_data_dictionary_cleaned.txt` — Variable dictionary
 
 ## How to Run
 
@@ -14,27 +12,33 @@ The following files must be available at `../../data/` relative to this director
    pip install -r requirements.txt
    ```
 
-2. Run the notebook from this directory:
+2. Run the notebook sequentially from top to bottom:
+   ```
+   jupyter notebook experiment_claude_code.ipynb
+   ```
+   Or execute non-interactively:
    ```
    jupyter nbconvert --to notebook --execute experiment_claude_code.ipynb
    ```
-   Or open in Jupyter and run all cells sequentially from top to bottom.
 
-## Outputs
+## Outputs Produced
 
 | Output | Location |
 |--------|----------|
-| Experiment notebook | `experiment_claude_code.ipynb` |
+| EDA visualisations (4 PNG files) | `evidence_claude_code/EDA_claude_code_Pics/` |
+| Baseline LR validation metrics | `evidence_claude_code/baseline_lr_validation_metrics.csv` |
+| LR tuning results | `evidence_claude_code/lr_tuning_results.csv` |
+| XGBoost tuning results | `evidence_claude_code/xgb_tuning_results.csv` |
+| Test set model comparison | `evidence_claude_code/test_model_comparison.csv` |
+| Model selection framework | `evidence_claude_code/model_selection_framework.csv` |
+| Missingness handling summary | `evidence_claude_code/missingness_handling_summary.csv` |
 | Run log | `run_log_claude_code.md` |
-| EDA figures (.png) | `evidence_claude_code/EDA_claude_code_Pics/` |
-| Test set comparison | `evidence_claude_code/test_set_comparison.csv` |
-| Model selection scores | `evidence_claude_code/model_selection_scores.csv` |
-| Non-technical report | `Report_claude_code.md` |
+| Report | `Report_claude_code.md` |
 
 ## Reproducibility
 
-- **Random seed**: `RANDOM_STATE = 42` is used throughout for all random operations (`random.seed`, `np.random.seed`, `train_test_split`, model training).
-- **Relative paths**: All file paths are relative to the notebook directory.
-- **Sequential execution**: The notebook is designed to run from top to bottom without manual intervention.
-- **Data split**: 70% train / 15% validation / 15% test, stratified by target class.
-- **No test set leakage**: The test set is used only once, for final model comparison in Step 5.3.
+- **Fixed random seed**: `RANDOM_STATE = 42` used throughout for all randomised operations
+- **Stratified splits**: Train/validation/test split (70/15/15) uses stratified sampling to preserve class proportions
+- **Relative paths only**: All file references use relative paths
+- **Shared evaluation harness**: Identical metric computation applied to all models
+- **Test set discipline**: Test set used only once for final model comparison after all tuning is complete

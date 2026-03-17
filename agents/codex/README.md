@@ -1,37 +1,30 @@
-# Codex Experiment Packaging
+# Codex Experiment Package
 
-## Required Inputs
-Place or keep these input files in `../../data/` relative to this folder:
-- `participation_2024-25_experiment.tab`
+## Required input files
+Place the following files in `./data` (already included in this workspace setup):
 - `participation_2024-25_data_dictionary_cleaned.txt`
+- `participation_2024-25_experiment.tab`
 
-## How To Run
-From this directory (`agents/codex`):
+## How to run
+From `agents/codex`:
 
 ```bash
-pip install -r requirements.txt
-jupyter notebook experiment_codex.ipynb
+python3 -m pip install -r requirements.txt
+python3 -m nbconvert --to notebook --execute --inplace experiment_codex.ipynb
 ```
 
-Run the notebook sequentially from top to bottom (Sections 0 to 5).
+This executes the notebook top-to-bottom with no manual intervention.
 
-## Outputs Produced
-Main outputs are saved under `evidence_codex/`:
-- `EDA_codex_Pics/*.png` (EDA figures from Step 2)
-- `missingness_handling_summary.csv` (Step 3 cleaning audit)
-- `baseline_lr_validation_metrics.csv` (Step 4 validation metrics)
-- `lr_tuning_results.csv` (Step 5.1 tuning trials)
-- `xgb_tuning_results.csv` (Step 5.2 tuning trials)
-- `test_model_comparison.csv` (Step 5.3 final test comparison)
-- `model_selection_framework.csv` (Step 5.4 weighted final selection)
+## Outputs produced
+- Main notebook: `experiment_codex.ipynb`
+- Run log: `run_log_codex.md`
+- Evidence folder: `evidence_codex/`
+  - EDA figures: `evidence_codex/EDA_codex_Pics/*.png`
+  - Schema, split, tuning, and evaluation outputs (`*.csv`, `*.json`, `*.png`)
+- Policy-facing report: `Report_codex.md`
 
-Additional deliverables in this workspace:
-- `run_log_codex.md`
-- `Report_codex.md`
-
-## Reproducibility Measures
-- Fixed global seed: `RANDOM_STATE = 42`.
-- Stratified train/validation/test split with fixed random state.
-- Relative paths only.
-- Shared evaluation harness used consistently across all models.
-- Test set reserved for final comparison only (after tuning).
+## Reproducibility controls
+- Global random seed fixed to `42`.
+- All split and model randomness set with `random_state=42`.
+- Same train/validation/test split reused across all modeling steps.
+- Test set held out until final comparison stage.

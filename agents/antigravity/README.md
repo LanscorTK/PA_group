@@ -1,25 +1,23 @@
-# Antigravity AI Agent: Predictive Analytics Experiment
-
-This package contains the end-to-end execution of a machine learning workflow for the PA Group Coursework, focusing on predicting arts under-engagement using the UK Participation Survey (2024-25).
+# antigravity Experiment Packaging
 
 ## Required Input Files
-To run the notebook `experiment_antigravity.ipynb`, ensure the following two files are placed in the same directory as the notebook (symlinks are acceptable):
-1. `participation_2024-25_experiment.tab` - The main data subset.
-2. `participation_2024-25_data_dictionary_cleaned.txt` - Variable dictionary used for schema and missingness logic definition.
+The experiment requires the following files to be present in the `./data/` folder relative to the notebook:
+- `participation_2024-25_experiment.tab` - The raw data file.
+- `participation_2024-25_data_dictionary_cleaned.txt` - The data dictionary.
 
 ## How to Run the Notebook
-1. Install dependencies from the `requirements.txt` file (e.g., `pip install -r requirements.txt`).
-2. Run the notebook sequentially from top to bottom. No manual intervention is required.
-    - via Jupyter Lab/Notebook interface: Click "Restart & Run All".
-    - via command line: `jupyter nbconvert --to notebook --execute experiment_antigravity.ipynb --inplace`.
+1. Install dependencies: `pip install -r requirements.txt`
+2. Ensure the `./data/` folder contains the required inputs.
+3. Open `experiment_antigravity.ipynb` in Jupyter Notebook or JupyterLab.
+4. Run all cells sequentially from top to bottom (`Cell > Run All`). The notebook is designed to execute without any manual intervention.
 
-## Outputs Produced and Save Locations
-All outputs are localized to this directly:
-- **`EDA_antigravity_Pics/`**: A folder containing `.png` versions of all EDA visualizations (e.g., target distribution and feature relationships).
-- **`run_log_antigravity.md`**: An audit trail documenting step-by-step progress, completion statuses, and any key actions or warnings.
-- **`Report_antigravity.md`**: A concise, non-technical policy report deriving insights from the model evaluations.
+## Outputs Produced
+- The notebook itself contains textual outputs, printed summaries, and metrics.
+- Visual outputs (Exploratory Data Analysis charts and Confusion Matrices) are automatically saved as `.png` files into the `./evidence_antigravity/EDA_antigravity_Pics/` directory.
+- A run log documenting the experiment's step-by-step progress is maintained in `run_log_antigravity.md` in the root directory.
 
-## Methods Supporting Reproducibility
-- **Global Random Seed Control**: Established `random_state=42` entirely throughout data splitting, model training, and tuning to ensure identical pipeline results on independent runs.
-- **Relative Path Consistency**: All inputs are loaded and outputs strictly written utilizing relative paths from the current directory.
-- **Sequential Execution**: The notebook is built dynamically keeping cells linear. Tests passed guaranteeing zero internal or upward data dependencies allowing straight-line execution.
+## Reproducibility Steps
+- A global random seed (`SEED = 42`) is explicitly defined at the beginning of the notebook.
+- This seed is passed into all stochastic algorithms (`train_test_split`, `LogisticRegression`, `XGBClassifier`) to ensure reproducible model training and evaluation.
+- Relative paths are used strictly for data ingestion and output saving to ensure cross-system compatibility.
+- Data schema checking and transparent handling of missing values (dropping non-informative codes `< 0` and `>= 997`) guarantee that the models ingest clean and consistent data.

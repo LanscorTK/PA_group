@@ -1,0 +1,12 @@
+variable,dtype,null_count
+CARTS_NET,int64,0
+AGEBAND,int64,0
+SEX,int64,0
+QWORK,int64,0
+EDUCAT3,int64,0
+FINHARD,int64,0
+CINTOFT,int64,0
+gor,int64,0
+rur11cat,int64,0
+CHILDHH,int64,0
+COHAB,int64,0

@@ -1,0 +1,2 @@
+Use exactly the same training, validation, and test split defined earlier.
+Train an XGBoost model and tune it on the validation set only to identify the best-performing hyperparameter setting.

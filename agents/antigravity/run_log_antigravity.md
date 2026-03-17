@@ -1,114 +1,138 @@
-# Run Log: Antigravity
+# Run Log: antigravity
 
-This run log records progress step-by-step throughout the experiment. 
-If any failure prevents reliable continuation of the pipeline, it will be marked clearly as `EARLY FAILURE` and state:
-- which step failed
-- the reason for failure
-- which later steps were affected
-
-## 0 Setup
-- **step name**: 0 Setup (section 0/step 0)
-- **completion status**: COMPLETE
-- **key actions**:
-  - Acknowledged data and dictionary files via symlinks to the core `data/` directory.
-  - Created `experiment_antigravity.ipynb` with initial markdown and code cells for seed initialization.
-  - Created `evidence_antigravity` folder for outputs.
-  - Set global random seed (`random_state=42`) for reproducibility.
-  - Ensured only relative paths will be used in the notebook.
-  - Verified variables based on data dictionary mapping without loading data.
-- **key outputs**:
+## Step 0: Setup
+- **Completion status**: Completed
+- **Key actions**:
+  - Created directory structure (`./agents/antigravity`, `./agents/antigravity/evidence_antigravity`, `./agents/antigravity/data`).
+  - Copied `participation_2024-25_data_dictionary_cleaned.txt` and `participation_2024-25_experiment.tab` to `data` dir.
+  - Initialized Jupyter Notebook `experiment_antigravity.ipynb` with title and global random seed (42).
+- **Key outputs**:
   - `experiment_antigravity.ipynb`
-  - `run_log_antigravity.md`
-  - `evidence_antigravity/` (directory)
-- **important warnings or errors**: None
+  - `evidence_antigravity/` folder
+  - `data/` folder containing data files
+- **Important warnings or errors**: None
 
-## 1 Dataset Ingestion + Schema Checks + Problem Definition
-- **step name**: 1 Dataset Ingestion + Schema Checks + Problem Definition (section 1/step 1)
-- **completion status**: COMPLETE
-- **key actions**:
-  - Ingested participation_2024-25_experiment.tab into pandas dataframe `participation_raw`.
-  - Verified dataset shape (rows & columns).
-  - Verified that all required 11 variables are present in the dataframe.
-  - Checked for duplicate columns and non-numeric datatypes. Expected all to be numeric based on categorical encoding.
-  - Defined the problem as binary classification targeting `CARTS_NET` and listing 10 features.
-  - Explicity stated in notebook that target rows with `-3` and `3` will be dropped downstream.
-  - Produced summary table of variables referencing dictionary labels.
-- **key outputs**:
-  - Notebook appended with Section 1 markdown and code cells.
-- **important warnings or errors**: None
+## Step 1.1: Dataset Ingestion & Schema Checks
+- **Completion status**: Completed
+- **Key actions**:
+  - Loaded `participation_2024-25_experiment.tab` into `participation_raw`.
+  - Added code to notebook checking dataset dimensions (34,378 rows, 11 columns).
+  - Added schema checks verifying expected variables mapping to data dictionary type.
+- **Key outputs**:
+  - Added markdown and code cells to `experiment_antigravity.ipynb`.
+- **Important warnings or errors**: None
 
-## 2 EDA and Insight Generation
-- **step name**: 2 EDA and Insight Generation (section 2/step 2)
-- **completion status**: COMPLETE
-- **key actions**:
-  - Filtered `participation_raw` to remove target values `-3` and `3`. Copied to `participation_eda`.
-  - Created a new binary target variable `arts_engaged` strictly copying from `CARTS_NET` without recoding to 0/1 yet.
-  - Dropped the original `CARTS_NET` column in `participation_eda`.
-  - Created an `EDA_antigravity_Pics` output folder.
-  - Generated bar plots using matplotlib/seaborn to explore target imbalance and relationship between engagement and socio-demographic features (AGEBAND, FINHARD, rur11cat). Added insights markdown drawing modeling implications.
-- **key outputs**:
-  - Notebook appended with Section 2 markdown and code cells.
-  - Visualisations saved as PNG files into `EDA_antigravity_Pics/`.
-- **important warnings or errors**: None
+## Step 1.2: Problem Definition
+- **Completion status**: Completed
+- **Key actions**:
+  - Added markdown cell with problem definition, variable listing, and data dictionary table.
+- **Key outputs**:
+  - Added markdown cell to `experiment_antigravity.ipynb`.
+- **Important warnings or errors**: None
 
-## 3 Missingness Handling
-- **step name**: 3 Missingness Handling (section 3/step 3)
-- **completion status**: COMPLETE
-- **key actions**:
-  - Detailed variable-specific handling rules based on documentation.
-  - Designed missingness logic: dropped rows with missing ordinal/geographic anchor variables (`AGEBAND`, `CHILDHH`, `gor`, `rur11cat`). Recoded nominals (`SEX`, `QWORK`, etc.) to a new `999.0` ('Unknown' or 'Prefer not to say' category).
-  - Showed rows before and after filtering logic (from `participation_eda`).
-  - Created finalized frame `participation_clean` containing no missing data, ready for model training.
-- **key outputs**:
-  - Notebook appended with Section 3 Markdown defining rules and python cell implementing it.
-- **important warnings or errors**: None
+## Step 2: Exploratory Data Analysis
+- **Completion status**: Completed
+- **Key actions**:
+  - Filtered `CARTS_NET` missing values (-3, 3) to create `participation_eda`.
+  - Added code to generate EDA charts (Target distribution, Age, Financial Hardship, Internet usage).
+  - Saved EDA charts as `.png` under `EDA_antigravity_Pics`.
+- **Key outputs**:
+  - Added EDA cells to `experiment_antigravity.ipynb`.
+  - `EDA_antigravity_Pics/` folder inside `evidence_antigravity`.
+- **Important warnings or errors**: None
 
-## 4 Baseline Model Training + Evaluation Harness
-- **step name**: 4 Baseline Model Training + Evaluation Harness (section 4/step 4)
-- **completion status**: COMPLETE
-- **key actions**:
-  - Defined target `y` as under-engagement (Class 1) and `X` as the 10 features.
-  - Created Sklearn `ColumnTransformer` pipelines with scaling and OHE for LR, and just OHE for XGBoost.
-  - Implemented a 0.7 / 0.15 / 0.15 train/val/test split, stratified by the target.
-  - Established Evaluation Harness focusing on F1, Precision, Recall, PR-AUC, ROC-AUC, and Confusion Matrix to suit the imbalanced target.
-  - Trained baseline LogisticRegression model and evaluated strictly on the Validation set.
-- **key outputs**:
-  - Notebook appended with Section 4 Markdown establishing the harness and Python code implementing the baseline pipeline.
-- **important warnings or errors**: None
+## Step 3: Missingness Handling
+- **Completion status**: Completed
+- **Key actions**:
+  - Defined non-informative values as `< 0` and `>= 997`.
+  - Applied boolean mask across all feature variables to drop rows with these values, resulting in `participation_clean`.
+- **Key outputs**:
+  - Added missingness handling cells to `experiment_antigravity.ipynb`.
+- **Important warnings or errors**: None
 
-## 5 Improving Performance
-- **step name**: 5 Improving Performance (section 5/step 5)
-- **completion status**: COMPLETE
-- **key actions**:
-  - Tuned Logistic Regression and XGBoost strictly on the Validation set using manual grid search.
-  - Printed structured tuning summaries for both models per protocol.
-  - Re-fit the optimal hyperparameters to train data and evaluated the three models (Baseline LR, Tuned LR, Tuned XGB) strictly on the Test Set.
-  - Specified a multi-dimensional framework evaluating Precision/Recall, Interpretability, and FNR.
-  - Recommended Tuned XGBoost as the final decision due to superior non-linear capabilities and strong recall.
-- **key outputs**:
-  - Notebook appended with Section 5 tuning scripts, summaries, test set evaluation loop, and final selection framework.
-- **important warnings or errors**: None
+## Step 4.1: Prepare Modeling Data
+- **Completion status**: Completed
+- **Key actions**:
+  - Defined `X` and `y`.
+  - Recoded `y` (`CARTS_NET`): 1 -> 1, 2 -> 0.
+  - Created Logistic Regression pipeline (`OneHotEncoder`) and XGBoost pipeline (`passthrough`).
+  - Split data into 70% train, 15% validation, 15% test, stratified by target.
+- **Key outputs**:
+  - Added modeling data setup cells to `experiment_antigravity.ipynb`.
+- **Important warnings or errors**: None
 
-## 6 Producing Reproducible Packaging
-- **step name**: 6 Producing Reproducible Packaging
-- **completion status**: COMPLETE
-- **key actions**:
-  - Validated there was no new notebook content added in this step.
-  - Authored a `requirements.txt` listing `pandas`, `xgboost`, `scikit-learn`, `nbformat` and others.
-  - Drafted a `README.md` containing all strict criteria: input files needed, instructions on execution, outputs generated/folder locations, and explicit references to the `random_state=42` control ensuring reproducibility.
-- **key outputs**:
+## Step 4.2: Create Evaluation Harness
+- **Completion status**: Completed
+- **Key actions**:
+  - Created markdown cell explaining the rationale for chosen metrics (ROC-AUC, Precision/Recall/F1, Confusion Matrix).
+  - Defined `evaluate_model` function to output these metrics consistently.
+- **Key outputs**:
+  - Added evaluation harness cells to `experiment_antigravity.ipynb`.
+- **Important warnings or errors**: None
+
+## Step 4.3: Baseline Model LR
+- **Completion status**: Completed
+- **Key actions**:
+  - Trained baseline Logistic Regression mapping standard parameters.
+  - Evaluated on validation set using the evaluation harness.
+- **Key outputs**:
+  - Added Model evaluation to `experiment_antigravity.ipynb`.
+- **Important warnings or errors**: None
+
+## Step 5.1: Tune Logistic Regression
+- **Completion status**: Completed
+- **Key actions**:
+  - Trained LR models over a grid of `C` values.
+  - Identified best hyperparameters by checking ROC-AUC solely on the validation set.
+  - Evaluated the best LR model on the validation set.
+- **Key outputs**:
+  - Added LR tuning code to `experiment_antigravity.ipynb`.
+- **Important warnings or errors**: None
+
+## Step 5.2: Tune XGBoost
+- **Completion status**: Completed
+- **Key actions**:
+  - Trained XGBoost models over a grid of `max_depth` and `learning_rate`.
+  - Identified best hyperparameters by checking ROC-AUC solely on the validation set.
+  - Evaluated the best XGBoost model on the validation set.
+- **Key outputs**:
+  - Added XGBoost tuning code to `experiment_antigravity.ipynb`.
+- **Important warnings or errors**: None
+
+## Step 5.3: Model Comparison
+- **Completion status**: Completed
+- **Key actions**:
+  - Evaluated all three models (Baseline LR, Tuned LR, Tuned XGBoost) on the test set.
+- **Key outputs**:
+  - Added final comparison code block to `experiment_antigravity.ipynb`.
+- **Important warnings or errors**: None
+
+## Step 5.4: Final Model Decision
+- **Completion status**: Completed
+- **Key actions**:
+  - Provided a model selection framework based on ROC-AUC and Class 0 Recall/F1.
+  - Outputted the tuning summary for both LR and XGBoost.
+  - Made the final model decision favoring Tuned XGBoost.
+- **Key outputs**:
+  - Added final model decision cells to `experiment_antigravity.ipynb`.
+- **Important warnings or errors**: None
+
+## Step 6: Producing Reproducible Packaging
+- **Completion status**: Completed
+- **Key actions**:
+  - Created `requirements.txt` with required python dependencies.
+  - Created `README.md` defining how to load inputs, run the experiment, output location, and reproducibility measures.
+- **Key outputs**:
   - `requirements.txt`
   - `README.md`
-- **important warnings or errors**: None
+- **Important warnings or errors**: None
 
-## 7 Writing documentation
-- **step name**: 7 Writing documentation
-- **completion status**: COMPLETE
-- **key actions**:
-  - Validated there was no new notebook content added.
-  - Extracted results from the executed notebook (including Baseline LR, Tuned XGBoost recall and precision metrics).
-  - Authored a ~400 word non-technical policy report targeting government arts departments.
-  - Structured the report precisely to cover: purpose, data approach, main findings, final model choice (XGBoost), practical implications, and causal/predictive limitations.
-- **key outputs**:
+## Step 7: Writing Documentation
+- **Completion status**: Completed
+- **Key actions**:
+  - Extracted output metrics from notebook execution.
+  - Drafted a non-technical (~400 words) policy report summarizing purpose, data approach, model choice, main findings, and limitations.
+  - Saved the report as `Report_antigravity.md` in the working directory.
+- **Key outputs**:
   - `Report_antigravity.md`
-- **important warnings or errors**: None
+- **Important warnings or errors**: None

@@ -1,0 +1,11 @@
+feature,non_informative_codes,rows_flagged,rate,handling
+AGEBAND,"[-3, 997]",606,0.0176,drop_rows
+SEX,"[-5, -4, -3, 997]",638,0.0186,drop_rows
+QWORK,"[-5, -4, -3, 997, 999]",1364,0.0397,drop_rows
+EDUCAT3,"[-5, -4, -3, 997, 999]",8239,0.2399,recode_to_unknown
+FINHARD,"[-5, -4, -3, 997]",1652,0.0481,drop_rows
+CINTOFT,"[-5, -4, -3]",2029,0.0591,recode_to_unknown
+gor,None,0,0.0,none
+rur11cat,None,0,0.0,none
+CHILDHH,"[-6, -5, -4, -3, 997]",69,0.002,drop_rows
+COHAB,"[-5, -4, -3, 997]",24434,0.7116,recode_to_unknown

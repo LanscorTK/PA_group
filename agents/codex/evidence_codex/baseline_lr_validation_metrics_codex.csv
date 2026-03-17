@@ -1,0 +1,2 @@
+model,split,threshold,recall,precision,f1,pr_auc,roc_auc,balanced_accuracy,tn,fp,fn,tp
+baseline_logistic_regression,validation,0.5,0.6520787746170679,0.19451697127937337,0.2996480643539467,0.2513432600751633,0.7632792083380339,0.6945949902058497,3460,1234,159,298

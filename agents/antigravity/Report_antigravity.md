@@ -1,22 +1,24 @@
-# Identifying Barriers to Arts Engagement: Predictive Analysis Report
+# Predicting Physical Arts Engagement: Analysis and Modelling Report
 
-**Purpose of the Analysis**
-The primary goal of this analysis is to identify structural and socioeconomic patterns associated with under-engagement in the arts. Rather than treating arts participation purely as an issue of individual taste, this project treats "under-engagement" as a reflection of potential societal barriers. By predicting which populations are least likely to engage physically with the arts, we can purposefully direct cultural policy and tailor public outreach strategies to foster inclusivity.
+## Purpose of the Analysis
+This analysis aims to identify populations that may face structural or contextual barriers to physical arts engagement. Rather than viewing arts participation as merely a matter of individual preference, this project frames non-participation as an indicator of potential under-engagement. By predicting whether individuals have engaged with the arts physically in the past 12 months, we seek to provide actionable evidence that can inform more inclusive cultural policies and targeted public engagement strategies.
 
-**Data and Approach**
-This analysis utilized the UK Participation Survey (2024–25), examining responses from roughly 34,000 adults. We tracked physical arts engagement over the last 12 months as our target outcome. We evaluated standard demographic and socioeconomic factors—such as age, rural/urban geography, employment status, education, and financial hardship—to see if they could predict a lack of engagement. 
+## Overview of the Data and Approach
+We used survey data from the 2024-25 participation dataset, which includes demographic, socioeconomic, and geographic information such as age, gender, employment status, education, financial hardship, and internet usage. After cleaning the data to remove non-informative responses, we prepared the features to train predictive algorithms. We tested and compared two distinct approaches: Logistic Regression (a standard additive model) and XGBoost (an advanced tree-based model that can capture complex, non-linear patterns). Our evaluation focused highly on the models' ability to distinguish between engaged and non-engaged individuals, measured through a metric known as ROC-AUC, which is robust against the dataset's heavy tilt toward active arts participants.
 
-We built and compared two types of predictive models: Logistic Regression (a traditional statistical approach) and XGBoost (a more complex, non-linear machine learning algorithm). In establishing a fair test, a portion of the data was strictly reserved to evaluate how successfully the models could flag "under-engaged" citizens on strictly unseen data.
+## Main Findings
+Our exploratory analysis and modelling revealed that arts engagement is indeed patterned across different demographic features. In terms of predictive performance on unseen data:
+- A basic, untuned model achieved a baseline discrimination score (ROC-AUC) of approximately 0.635.
+- Through careful tuning, the Logistic Regression model improved this score to 0.660.
+- The tuned XGBoost model achieved the best overall performance, reaching a score of 0.688.
 
-**Main Findings**
-Our exploratory analysis confirmed that arts engagement is deeply socially patterned. Notably, individuals experiencing severe financial hardship and specific age demographics showed notably lower engagement rates.
-During modeling, simply predicting that everyone "engages" achieves high baseline accuracy because a vast majority of the population does participate. However, our models specifically prioritized identifying the minority who *do not* engage. The models successfully flagged around 70-71% of the truly under-engaged citizens (Recall). 
+However, the dataset presents a stark imbalance—the vast majority of respondents reported engaging with the arts, leaving very few non-engaged records (around 5% of the test pool). Consequently, while the models are modestly effective at ranking individuals by their likelihood to participate, they currently predict "engaged" for almost all users by default in order to maximize raw accuracy.
 
-**Final Model Choice**
-We selected the **Tuned XGBoost** model as our final choice. While the baseline Logistic Regression provided similar baseline indicators, XGBoost proved slightly more adept at capturing complex, overlapping factors (like the intersection of rural living contexts and financial difficulty) and maintained an excellent identification rate (71% recall) without entirely sacrificing precision. 
+## Final Model Choice
+We selected the **Tuned XGBoost** model as our final choice. It demonstrated the strongest ability to mathematically separate those who engaged from those who did not, outperforming the Logistic Regression models on our held-out test data. Its capacity to learn complex relationships between demographic factors made it the most capable tool for this specific dataset.
 
-**Practical Implications**
-The findings clearly emphasize that a "one-size-fits-all" policy will fail to encompass the entire population. Policymakers should target interventions directly toward the communities our model flags as highly likely to be under-engaged—specifically focusing on removing financial entry barriers and increasing targeted community outreach in specific geographic constraints. By understanding exactly *who* is slipping through the cracks, departments can confidently allocate funding where it is needed most.
+## Practical Implications
+For policymakers, these predictive insights can guide resource allocation. Although the model cannot perfectly pinpoint every non-participant without threshold adjustments, it securely highlights the demographic and socioeconomic profiles most closely associated with non-engagement. Cultural programs and funding can be proactively directed toward these identified at-risk profiles—such as specific age brackets or communities facing financial hardship—to dismantle barriers and foster broader inclusivity.
 
-**Limitations and Cautions**
-While powerful, this predictive model serves strictly as a decision-support tool, not a measure of causation. The algorithm identifies *correlations* between financial hardship and lack of engagement, but it cannot definitively prove that one directly causes the other. Furthermore, the model has a noticeable false-positive rate, meaning it will sometimes flag individuals as under-engaged when they are actually participating. Policies should, therefore, remain broad enough to benefit entire communities rather than rigidly restricting resources to individual model predictions.
+## Key Limitations and Cautions
+It is critical to note that predictive modeling does not establish cause and effect. A variable strongly associated with non-participation does not necessarily cause it. Furthermore, the extreme imbalance in our data means the model currently prioritizes the majority class and struggles to explicitly label the minority correctly using standard thresholds. Any policy interventions developed from these findings should use the model's probability rankings as a supportive guide rather than an absolute directive, and should be supplemented with qualitative research into the lived experiences of non-participants.
