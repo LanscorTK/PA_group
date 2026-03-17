@@ -1,74 +1,168 @@
-# Experiment Run Log: codex
+# Run Log: codex
 
-## Step: 0. Setup
+## Step 0 Setup
 - completion status: Completed
-- key actions: Set global random seed to 42, initialized run log and evidence folder, read variable dictionary file only.
-- key outputs: run_log_codex.md, evidence_codex/
-- important warnings or errors: None
+- key actions:
+  - Reviewed variable dictionary only (no data load in this step).
+  - Created notebook `experiment_codex.ipynb` with title and setup section.
+  - Set reproducibility controls with fixed seed `42`.
+  - Created `evidence_codex/` and EDA figure subfolder prepared by notebook.
+- key outputs:
+  - `experiment_codex.ipynb`
+  - `evidence_codex/`
+- important warnings or errors:
+  - None.
 
-## Step: 1.1 Dataset ingestion and schema checks
+## Step 1.1 Dataset Ingestion and Schema Checks
 - completion status: Completed
-- key actions: Loaded dataset into participation_raw, validated required variables, checked duplicates, dtypes, and null counts.
-- key outputs: participation_raw shape=(34378, 11); schema checks passed.
-- important warnings or errors: None
+- key actions:
+  - Loaded `data/participation_2024-25_experiment_v2.tab` into `participation_raw`.
+  - Checked required variable presence and obvious schema issues.
+- key outputs:
+  - Raw shape confirmed in notebook: `34,378 rows x 16 columns`.
+  - All expected required variables present; no null-based schema break.
+- important warnings or errors:
+  - None.
 
-## Step: 1.2 Problem definition
+## Step 1.2 Problem Definition
 - completion status: Completed
-- key actions: Defined prediction objective, declared target/features, documented target missing-value rule and variable table.
-- key outputs: Markdown definition completed in notebook.
-- important warnings or errors: None
+- key actions:
+  - Added task framing markdown for policy-focused under-engagement identification.
+  - Declared target and features.
+  - Explicitly stated `CARTS_NET` values `-3` and `3` will be dropped later.
+  - Added variable table based on dictionary.
+- key outputs:
+  - Problem definition markdown section in notebook.
+- important warnings or errors:
+  - None.
 
-## Step: 2. EDA
+## Step 2 EDA
 - completion status: Completed
-- key actions: Dropped target rows coded -3/3, created participation_eda with new target column, generated and saved EDA figures.
-- key outputs: participation_eda shape=(34338, 11); EDA figures saved to evidence_codex/EDA_codex_Pics
-- important warnings or errors: None
+- key actions:
+  - Dropped target-coded missing rows (`CARTS_NET` in `{-3, 3}`).
+  - Built `participation_eda` by removing original `CARTS_NET` and adding binary-labelled target.
+  - Produced EDA visualisations and saved PNG outputs.
+- key outputs:
+  - EDA sample rows after target filtering: `34,338`.
+  - `evidence_codex/EDA_codex_Pics/01_target_distribution.png`
+  - `evidence_codex/EDA_codex_Pics/02_ageband_target_stacked.png`
+  - `evidence_codex/EDA_codex_Pics/03_education_target_stacked.png`
+  - `evidence_codex/EDA_codex_Pics/04_deprivation_underengagement_line.png`
+  - `evidence_codex/EDA_codex_Pics/05_wellb1_kde_by_target.png`
+  - `evidence_codex/EDA_codex_Pics/06_cultsatis_distribution.png`
+- important warnings or errors:
+  - None.
 
-## Step: 3. Missingness handling
+## Step 3 Missingness Handling
 - completion status: Completed
-- key actions: Applied variable-specific non-informative code handling and imputation to feature variables.
-- key outputs: participation_clean shape=(34338, 11); no feature missing values; summary saved to evidence_codex/missingness_summary_codex.csv
-- important warnings or errors: None
+- key actions:
+  - Applied variable-specific rules from coded meanings and missing rates.
+  - Dropped low-rate (<5%) non-informative coded responses.
+  - Re-coded high-rate coded missing values to `Unknown` for selected variables.
+  - Treated `CULTSATIS=-3` as informative `RoutingSkip`.
+  - Kept `EDUCAT3=-3` as informative `NoQualifications`.
+  - Produced cleaned dataset `participation_clean` with binary numeric target.
+- key outputs:
+  - `evidence_codex/missingness_profile.csv`
+  - `evidence_codex/participation_clean.csv`
+  - Rows before cleaning: `34,338`
+  - Rows after cleaning: `28,995`
+- important warnings or errors:
+  - None.
 
-## Step: 4.1 Prepare modeling data
+## Step 4.1 Prepare Modelling Data
 - completion status: Completed
-- key actions: Defined X/y, created separate preprocessing pipelines for LR and XGBoost, and produced stratified 70/15/15 splits.
-- key outputs: X_train=(24036, 10), X_val=(5151, 10), X_test=(5151, 10)
-- important warnings or errors: None
+- key actions:
+  - Defined `X` and `y` from `participation_clean`.
+  - Built preprocessing pipelines for Logistic Regression and XGBoost.
+  - Created fixed stratified train/validation/test splits (0.70/0.15/0.15).
+- key outputs:
+  - Split created and reused for all later tuning/evaluation cells.
+- important warnings or errors:
+  - None.
 
-## Step: 4.2 Evaluation harness
+## Step 4.2 Create Evaluation Harness
 - completion status: Completed
-- key actions: Implemented shared metric functions and validation-threshold tuning rule for both model families.
-- key outputs: evaluate_predictions, find_best_threshold, evaluate_model functions defined.
-- important warnings or errors: None
+- key actions:
+  - Defined unified evaluation metrics and threshold-search utility.
+  - Prioritised F2 and recall for under-engagement detection use case.
+- key outputs:
+  - Reusable evaluation functions in notebook.
+- important warnings or errors:
+  - None.
 
-## Step: 4.3 Baseline LR
+## Step 4.3 Baseline Logistic Regression
 - completion status: Completed
-- key actions: Trained baseline Logistic Regression and evaluated on validation set at threshold 0.50.
-- key outputs: Validation F2=0.3710, PR-AUC=0.1915
-- important warnings or errors: None
+- key actions:
+  - Trained baseline LR on train set.
+  - Evaluated on validation set only with common harness.
+- key outputs:
+  - Baseline model metrics recorded in notebook.
+- important warnings or errors:
+  - None.
 
-## Step: 5.1 Improve LR
+## Step 5.1 Improve Logistic Regression
 - completion status: Completed
-- key actions: Completed grid search over LR hyperparameters and validation threshold tuning.
-- key outputs: Best LR params={'model__C': 3.0, 'model__penalty': 'l2', 'model__class_weight': 'balanced'}, best threshold=0.45, best validation F2=0.3783
-- important warnings or errors: None
+- key actions:
+  - Tuned LR hyperparameters on validation set only.
+  - Performed threshold optimisation for F2.
+- key outputs:
+  - `evidence_codex/lr_tuning_summary.json`
+  - Best LR validation setup: `C=0.05`, `penalty=l1`, `class_weight=balanced`, `threshold=0.52`.
+- important warnings or errors:
+  - None.
 
-## Step: 5.2 Tune XGBoost
+## Step 5.2 Tune XGBoost
 - completion status: Completed
-- key actions: Completed grid search over XGBoost hyperparameters and validation threshold tuning.
-- key outputs: Best XGB params={'model__n_estimators': 400, 'model__max_depth': 3, 'model__learning_rate': 0.1, 'model__subsample': 1.0}, best threshold=0.10, best validation F2=0.3783
-- important warnings or errors: None
+- key actions:
+  - Trained and tuned XGBoost on the same fixed split.
+  - Performed threshold optimisation for F2.
+- key outputs:
+  - `evidence_codex/xgb_tuning_summary.json`
+  - Best XGBoost validation setup: `n_estimators=200`, `max_depth=4`, `learning_rate=0.08`, `threshold=0.10`.
+- important warnings or errors:
+  - None.
 
-## Step: 5.3 Model comparison
+## Step 5.3 Model Comparison (Test Set Only)
 - completion status: Completed
-- key actions: Evaluated baseline LR, tuned LR, and tuned XGBoost on the test set only.
-- key outputs: Comparison table saved to evidence_codex/model_comparison_test_codex.csv
-- important warnings or errors: None
+- key actions:
+  - Used test set only at final comparison stage.
+  - Compared baseline LR, tuned LR, tuned XGBoost under identical harness.
+- key outputs:
+  - `evidence_codex/model_comparison_test.csv`
+  - Test F2: tuned LR `0.4639`, tuned XGBoost `0.4515`, baseline LR `0.0721`.
+- important warnings or errors:
+  - None.
 
-## Step: 5.4 Final model decision
+## Step 5.4 Final Model Decision
 - completion status: Completed
-- key actions: Applied weighted quantitative framework to tuned LR and tuned XGBoost and selected final model.
-- key outputs: Final model=Tuned XGBoost; selection table saved to evidence_codex/final_model_selection_table_codex.csv
-- important warnings or errors: None
+- key actions:
+  - Defined quantitative multi-metric model selection score.
+  - Selected final model based on weighted policy-oriented criteria.
+- key outputs:
+  - `evidence_codex/final_model_selection_score.csv`
+  - Final model selected: `tuned_lr` (selection score `0.4875`).
+- important warnings or errors:
+  - None.
 
+## Step 6 Producing Reproducible Packaging
+- completion status: Completed
+- key actions:
+  - Created concise dependency file and run instructions.
+- key outputs:
+  - `requirements.txt`
+  - `README.md`
+- important warnings or errors:
+  - None.
+
+## Step 7 Writing Documentation
+- completion status: Completed
+- key actions:
+  - Produced policy-facing non-technical markdown report using actual model outputs.
+- key outputs:
+  - `Report_codex.md`
+- important warnings or errors:
+  - None.
+
+## Notes
+- The notebook initially failed execution due malformed indentation in generated cells; cells were corrected and notebook was rerun successfully end-to-end.

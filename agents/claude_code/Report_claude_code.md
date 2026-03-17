@@ -1,27 +1,27 @@
-# Report: Identifying Under-Engagement in Physical Arts Participation
+# Predicting Arts Under-Engagement: Evidence for Cultural Policy
 
 ## Purpose
 
-This analysis supports evidence-based cultural policy by identifying population groups that are less likely to engage in physical arts activities. Using data from the UK Participation Survey 2024–25, we developed predictive models to detect patterns of under-engagement across demographic, socioeconomic, digital, and geographic factors. The goal is to help arts organisations and policymakers direct outreach and resources towards groups facing potential barriers to participation.
+This analysis was conducted to support evidence-based cultural policy by identifying groups of people who are less likely to engage with the arts physically. Rather than treating non-participation as a purely personal choice, the work investigates whether patterns of under-engagement are shaped by demographic, socioeconomic, and geographic factors. The findings are intended to help government arts departments target outreach and reduce barriers to participation.
 
 ## Data and Approach
 
-The dataset comprises 31,351 respondents from the annual UK Participation Survey, each described by ten variables covering age, gender, employment status, education, financial circumstances, internet usage, region, urban/rural setting, household composition, and cohabitation status. The target variable indicates whether a respondent physically engaged with the arts in the previous twelve months.
+The analysis used the UK Participation Survey 2024-25, a nationally representative sample of 34,338 respondents. The outcome of interest was whether each respondent had attended or participated in the arts physically in the last 12 months. Fifteen predictor variables were used, covering education, employment, financial circumstances, internet use, housing tenure, loneliness, ethnicity, area deprivation, satisfaction with local cultural activities, age, and gender.
 
-Approximately 8% of respondents were identified as under-engaged. After cleaning coded missing values using a tiered strategy (dropping rows for low-missingness variables, recoding to an "Unknown" category for high-missingness ones), we trained and compared three models: a baseline logistic regression, a tuned logistic regression, and a tuned XGBoost gradient-boosted tree classifier. Data was split into training (70%), validation (15%), and test (15%) sets, with the test set reserved exclusively for final evaluation.
+After cleaning the data to handle missing and non-applicable responses, approximately 29,000 records were available for modelling. Three models were trained and compared: a baseline logistic regression, a tuned logistic regression with optimised settings, and a gradient-boosted tree model (XGBoost). The data were split into training (70%), validation (15%), and test (15%) sets, with class balance preserved in each split. All models were evaluated using the same set of metrics, with particular emphasis on the ability to correctly identify under-engaged individuals.
 
-## Findings
+## Main Findings
 
-All three models achieved similar performance on the held-out test set. The baseline logistic regression correctly identified 68% of under-engaged respondents (recall), with a balanced accuracy of 70.0% and an ROC-AUC of 0.77. The tuned logistic regression achieved 67% recall and 70.2% balanced accuracy. The tuned XGBoost model reached 67% recall and 69.4% balanced accuracy.
+On the held-out test set, the tuned logistic regression achieved the strongest performance for the policy objective. It correctly identified 76.9% of under-engaged respondents (recall), with a balanced accuracy of 74.5% and an ROC-AUC of 0.83, indicating good overall discrimination. The baseline logistic regression detected only 11.6% of under-engaged individuals, while XGBoost detected 18.8% with higher precision but much lower recall.
 
 ## Model Choice
 
-The **Baseline LR** was selected as the final model using a weighted scoring framework that prioritises recall (identifying under-engaged groups), balanced accuracy, and interpretability. Logistic regression offers transparent coefficients that are straightforward to communicate to non-technical stakeholders, which is essential for policy applications.
+The tuned logistic regression was selected as the final model. It scored highest on a weighted evaluation framework that prioritised detection of under-engaged populations, while also offering the advantage of interpretability — its coefficients directly show which factors increase or decrease the likelihood of under-engagement.
 
 ## Practical Implications
 
-The model can help identify demographic and socioeconomic profiles associated with lower arts participation. This information may guide targeted outreach campaigns, programme design, and resource allocation to improve inclusivity in cultural engagement.
+The model suggests that arts under-engagement is not randomly distributed but is associated with identifiable social and demographic patterns. Policy teams could use these findings to prioritise outreach towards groups with higher predicted under-engagement, design targeted interventions, and monitor whether engagement gaps narrow over time.
 
 ## Limitations
 
-The model identifies statistical associations, not causal relationships — non-participation may reflect preferences rather than barriers. Precision for the under-engaged class remains modest, meaning some engaged individuals are incorrectly flagged. High missingness in cohabitation status and education data may limit the model's sensitivity to these factors. Results should be used alongside qualitative research and domain expertise rather than as a standalone decision tool.
+This analysis identifies statistical associations, not causes. The model cannot determine why certain groups are less engaged, only that they are. Precision was relatively low (17%), meaning many individuals flagged as under-engaged may in fact participate — a trade-off accepted in favour of broad detection. The survey is cross-sectional, so results reflect a single time point. Missing data handling, while carefully documented, required judgement calls that could influence results. These findings should complement, not replace, qualitative research and community engagement.

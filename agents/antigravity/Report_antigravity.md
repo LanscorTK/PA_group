@@ -1,30 +1,23 @@
-# Report on Arts Participation Under-Engagement Predictions
+# Arts Engagement Analysis for Cultural Policy Strategy
 
 ## Purpose of the Analysis
-This analysis aims to predict whether an individual is "under-engaged" with physical arts, using a data-driven approach rather than relying solely on anecdotal observation. Understanding the social patterns of non-participation is crucial. The goal is to identify demographic, socioeconomic, and geographic groups that face barriers to arts engagement. Highlighting these structural barriers provides evidence to assist policymakers in designing and targeting more inclusive cultural engagement strategies.
+This report outlines the findings of a predictive modeling exercise targeting arts engagement. The objective is to identify demographic, socioeconomic, and geographic subgroups that are "under-engaged" with physical arts activities. In contrast to viewing participation as purely individual choice, diagnosing under-engagement structurally provides actionable evidence to guide targeted cultural policy, address significant social barriers, and promote a more inclusive arts strategy across the UK.
 
-## Data and Approach
-The modeling used a representative dataset tracking arts participation in 2024-25 across the UK. Several features were selected, including age, gender, employment status, education, financial hardship, internet usage, and geographic location. We converted the engagement tracking into a binary classification problem: highlighting individuals who have *not* participated in physical arts activities. 
+## Overview of Data and Approach
+We examined survey data representing roughly 25,000 respondents from the UK Participation Survey (2024-25). The dataset contained varied indicators of individual background and lived experience, such as age, tenure status, internet connectivity, self-reported well-being, feelings of loneliness, and area deprivation levels.
 
-To conduct our analysis, we tested three main algorithms: 
-1. A standard Baseline Logistic Regression model.
-2. A Tuned Logistic Regression model.
-3. A Tuned XGBoost model, a more advanced tree-based method.
-
-Both advanced models were carefully tuned and thresholds adjusted to prioritize the correct identification of under-engaged groups without raising excessive false alarms out of proportion.
+To analyze this data, we built a machine learning pipeline that framed under-engagement as a complex pattern-recognition task. Recognizing that "under-engaged" individuals represent a smaller portion of the overall population (an "imbalanced" problem), our methodology specifically weighted our models to prioritize correctly identifying these individuals rather than prioritizing general accuracy. We tested standard baseline models against heavily-optimized Logistic Regression and XGBoost (advanced pattern-matching) algorithms, tuning the threshold limit to aggressively capture genuine cases of under-engagement.
 
 ## Main Findings
-Initial results show that predicting individual cultural non-participation is challenging, indicated by overall modest predictive precision. The Baseline Logistic Regression model provided a baseline, but fine-tuning hyperparameter configurations allowed for superior detection of the target group. Following hyperparameter and decision threshold adjustments, we observed that:
-- Tuned Logistic Regression reached an F1-score of 0.2766 on our validation set.
-- Tuned XGBoost emerged slightly stronger, with an F1-score of 0.2780 and a slightly improved Precision-Recall Area Under the Curve (PR-AUC) of 0.2131.
+Our models successfully identified indicators associated with reduced arts engagement, utilizing performance metrics that strictly measure targeted subgroup identification (F2 Score). 
 
-Evaluation on the unseen test set confirmed these findings, revealing that these models successfully balanced identifying non-participants against mislabeling active participants. 
+The baseline model proved largely ineffective at identifying under-engaged populations (F2 Score: ~0.06). However, an optimized Logistic Regression model correctly captured a far larger proportion of the under-engaged group, reaching an F2 score of 0.49 and an overall accuracy above 81%. This confirms that under-engagement is not purely random but follows structured societal predictors present in the data. Features surrounding socioeconomic hardship, neighborhood deprivation, and lower levels of education commonly appear as indicators of non-participation.
 
 ## Final Model Choice
-Based on these outcomes, we selected the **Tuned XGBoost** model. It achieved the highest performance metric (F1-score) on the validation and test datasets, indicating it provides the most effective balance of identifying as many under-engaged individuals as possible while keeping false identifications manageable. 
+We ultimately selected the Tuned Logistic Regression model over XGBoost. Both models performed comparably well at correctly categorizing under-engaged subgroups; however, the Logistic Regression model emerged as the preferred choice due to its superior F2 metric. Additionally, Logistic Regression offers tremendous interpretability. Because public policy design requires a transparent approach, utilizing a highly interpretable model ensures stakeholders can directly understand the exact driving factors and weight assigned to demographic traits when forecasting engagement levels.
 
 ## Practical Implications
-For the government arts department, this model acts as a strategic indicator rather than an absolute truth. It suggests that specific demographic and socioeconomic profiles—identified through the model’s data pathways—are systematically less likely to access physical arts. Policymakers should allocate resources and community outreach initiatives toward these specific group profiles to dismantle the contextual barriers preventing access.
+These findings demonstrate that arts under-engagement follows highly predictable patterns tied to tangible life circumstances. For policymakers, this signals that future public arts strategies should shift towards structurally reducing barriers for these predictable demographic models, specifically addressing subgroups experiencing complex forms of deprivation, rather than solely funding broad community arts programs.
 
 ## Key Limitations and Cautions
-These predictions are correlational, not causal. The model identifies who is likely to be under-engaged but does not explain *why* they do not participate. Furthermore, while the model is the strongest available configuration, its predictive performance highlights the inherent difficulty of capturing human behavior perfectly. The tool should be used to support broader qualitative research and community dialogue, not as a standalone arbiter of policy decisions.
+While highly predictive, these models rely on observational correlations and do not imply direct causal relationships between demographic traits and arts participation. The results act as a diagnostic signpost, pointing researchers towards groups that need interventions but do not explain *why* the identified structural barriers prevent participation. Finally, missing responses for non-participants were removed to train the models cleanly, meaning the algorithm operates primarily on full respondent profiles and may struggle against radically incomplete future survey responses.

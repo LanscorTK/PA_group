@@ -1,6 +1,6 @@
 Work in ./agents/[agent_name] and NOWHERE ELSE. Assume the following files are available in ./data:
-1. Variable dictionary: participation_2024-25_data_dictionary_cleaned.txt
-2. Data file: participation_2024-25_experiment.tab
+1. Variable dictionary: participation_2024-25_data_dictionary_v2.txt
+2. Data file: participation_2024-25_experiment_v2.tab
 Read the variable dictionary to understand the meanings of the variables and their coded values (just try to understand, no need creating note in the notebook). Do not load the data file yet in this step.
 Create a Jupyter Notebook named `experiment_[agent_name].ipynb`.
 Add a markdown cell at the top of the notebook containing the main title: # Experiment: [agent_name] and the name of this section, with correct level.

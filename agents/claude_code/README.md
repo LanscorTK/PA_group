@@ -2,42 +2,53 @@
 
 ## Required Input Files
 
-The following files must be available in `../../data/` (relative to this directory):
+The following files must be present in `../../data/` (relative to this directory):
 
-1. `participation_2024-25_experiment.tab` — UK Participation Survey dataset (tab-separated)
-2. `participation_2024-25_data_dictionary_cleaned.txt` — Variable dictionary
+| File | Description |
+|---|---|
+| `participation_2024-25_experiment_v2.tab` | UK Participation Survey 2024-25 dataset (tab-separated) |
+| `participation_2024-25_data_dictionary_v2.txt` | Variable definitions and coded value descriptions |
 
 ## How to Run
 
-```bash
-cd agents/claude_code
-pip install -r requirements.txt
-jupyter nbconvert --execute --to notebook --inplace experiment_claude_code.ipynb
-```
+1. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-Or open `experiment_claude_code.ipynb` in Jupyter and run all cells sequentially.
+2. Generate the notebook (optional — the notebook is already included):
+   ```bash
+   python3 build_notebook.py
+   ```
+
+3. Execute the notebook:
+   ```bash
+   jupyter nbconvert --to notebook --execute experiment_claude_code.ipynb --output experiment_claude_code.ipynb
+   ```
+
+   Or open in Jupyter and run all cells sequentially (Cell → Run All).
 
 ## Outputs
 
-| File | Description |
-|------|-------------|
-| `experiment_claude_code.ipynb` | Complete experiment notebook with all outputs |
-| `run_log_claude_code.md` | Step-by-step execution log |
-| `Report_claude_code.md` | Non-technical policy report (~400 words) |
-| `requirements.txt` | Python dependencies |
-| `evidence_claude_code/` | Evidence folder containing: |
-| `  EDA_claude_code_Pics/` | EDA visualisation PNGs |
-| `  baseline_lr_validation_metrics.csv` | Baseline LR validation results |
-| `  lr_tuning_results.csv` | LR grid search results |
-| `  xgb_tuning_results.csv` | XGBoost grid search results |
-| `  test_model_comparison.csv` | Final test-set model comparison |
-| `  model_selection_framework.csv` | Weighted model selection scores |
-| `  missingness_handling_summary.csv` | Missingness handling details |
+| Output | Location | Description |
+|---|---|---|
+| `experiment_claude_code.ipynb` | `.` | Main experiment notebook (Steps 0–5.4) |
+| `run_log_claude_code.md` | `.` | Step-by-step run log with status and outputs |
+| `Report_claude_code.md` | `.` | Non-technical report for policy audience |
+| `best_model_name.txt` | `.` | Name of the selected final model |
+| `evidence_claude_code/` | `.` | All evidence artefacts (CSVs, PNGs) |
+| `baseline_lr_validation_metrics.csv` | `evidence_claude_code/` | Baseline LR validation results |
+| `lr_tuning_results.csv` | `evidence_claude_code/` | LR hyperparameter tuning grid |
+| `xgb_tuning_results.csv` | `evidence_claude_code/` | XGBoost hyperparameter tuning grid |
+| `test_model_comparison.csv` | `evidence_claude_code/` | Final test-set comparison (3 models) |
+| `model_selection_framework.csv` | `evidence_claude_code/` | Weighted scoring framework results |
+| `missingness_handling_summary.csv` | `evidence_claude_code/` | Variable-level missingness strategy |
+| `EDA_claude_code_Pics/` | `evidence_claude_code/` | EDA visualisations (4 PNG files) |
 
 ## Reproducibility
 
-- **Random seed:** `RANDOM_STATE = 42` used throughout (numpy, random, sklearn, xgboost)
-- **Stratified splits:** 70/15/15 train/validation/test with stratification on target
-- **Relative paths only:** all file references use relative paths from this directory
-- **Shared evaluation harness:** identical metrics applied to all models
-- **Test set discipline:** test set used only once in Step 5.3 for final comparison
+- **Random seed**: `random_state=42` is used throughout (numpy, random, sklearn, xgboost).
+- **Relative paths**: All file paths are relative to the working directory.
+- **Sequential execution**: The notebook runs top-to-bottom without manual intervention.
+- **Stratified splits**: Train/validation/test split (70/15/15) preserves class balance.
+- **Package versions**: Exact versions pinned in `requirements.txt`.

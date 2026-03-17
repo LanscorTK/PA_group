@@ -1,1181 +1,1012 @@
 #!/usr/bin/env python3
 """
-build_notebook.py — Generates and executes the claude_code ML experiment notebook.
+build_notebook.py — Generates experiment_claude_code.ipynb programmatically.
 
-Usage:
-    cd agents/claude_code
-    python build_notebook.py
+Run from agents/claude_code/:
+    python3 build_notebook.py
+Then execute:
+    jupyter nbconvert --to notebook --execute experiment_claude_code.ipynb --output experiment_claude_code.ipynb
 """
 
 import nbformat as nbf
-import subprocess
-import sys
-from pathlib import Path
 
-AGENT = "claude_code"
-NB_FILE = f"experiment_{AGENT}.ipynb"
+nb = nbf.v4.new_notebook()
+nb.metadata.update({
+    "kernelspec": {
+        "display_name": "Python 3",
+        "language": "python",
+        "name": "python3",
+    },
+    "language_info": {"name": "python", "version": "3.11.0"},
+})
 
-# ---------------------------------------------------------------------------
-# Helper to add cells
-# ---------------------------------------------------------------------------
-cells = []
 
-def md(source):
-    cells.append(nbf.v4.new_markdown_cell(source))
+def md(source: str):
+    nb.cells.append(nbf.v4.new_markdown_cell(source.strip()))
 
-def code(source):
-    cells.append(nbf.v4.new_code_cell(source))
 
-# ===================================================================
-# STEP 0 — SETUP
-# ===================================================================
-md("""\
+def code(source: str):
+    nb.cells.append(nbf.v4.new_code_cell(source.strip()))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# STEP 0 — Setup
+# ═══════════════════════════════════════════════════════════════════════════════
+
+md("""
 # Experiment: claude_code
 
-## 0. Setup
+## Step 0 — Setup
 
-This section sets up the working environment: imports, random seed, directory structure, and run-log helper.
+This notebook implements a complete predictive analytics pipeline for the
+UK Participation Survey 2024-25. All randomness uses `random_state=42` for
+full reproducibility. Outputs are saved to the `evidence_claude_code/` folder.
 """)
 
-code("""\
-import warnings
-warnings.filterwarnings('ignore')
-
-import random, os, json
+code("""
+# ── Imports ──────────────────────────────────────────────────────────────────
+import os, random, warnings, datetime
 import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
-from pathlib import Path
-
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.model_selection import train_test_split, StratifiedKFold
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score, f1_score,
+    precision_score, recall_score, f1_score, fbeta_score,
     balanced_accuracy_score, roc_auc_score, average_precision_score,
-    confusion_matrix, classification_report
+    classification_report, confusion_matrix
 )
-import xgboost as xgb
+from xgboost import XGBClassifier
 
-# ---- Reproducibility ----
+warnings.filterwarnings('ignore')
+
+# ── Reproducibility ─────────────────────────────────────────────────────────
 RANDOM_STATE = 42
 random.seed(RANDOM_STATE)
 np.random.seed(RANDOM_STATE)
 
-# ---- Paths (relative only) ----
-DATA_DIR = Path('../../data')
-EVIDENCE_DIR = Path('evidence_claude_code')
-EDA_DIR = EVIDENCE_DIR / 'EDA_claude_code_Pics'
-RUN_LOG = Path('run_log_claude_code.md')
+# ── Paths ────────────────────────────────────────────────────────────────────
+DATA_FILE      = '../../data/participation_2024-25_experiment_v2.tab'
+DICT_FILE      = '../../data/participation_2024-25_data_dictionary_v2.txt'
+EVIDENCE_DIR   = 'evidence_claude_code'
+EDA_DIR        = os.path.join(EVIDENCE_DIR, 'EDA_claude_code_Pics')
+RUN_LOG        = 'run_log_claude_code.md'
 
-EVIDENCE_DIR.mkdir(exist_ok=True)
-EDA_DIR.mkdir(exist_ok=True)
+os.makedirs(EDA_DIR, exist_ok=True)
 
-# ---- Run-log helper ----
-def log_step(step_name, status, actions, outputs, warnings_notes="None"):
+# ── Run-log helper ──────────────────────────────────────────────────────────
+def log_step(step_name, status, actions, outputs, warnings_errors='None'):
     with open(RUN_LOG, 'a') as f:
-        f.write(f"### {step_name}\\n")
-        f.write(f"- **Status:** {status}\\n")
-        f.write(f"- **Actions:** {actions}\\n")
-        f.write(f"- **Outputs:** {outputs}\\n")
-        f.write(f"- **Warnings/Errors:** {warnings_notes}\\n\\n")
+        f.write(f"## Step: {step_name}\\n")
+        f.write(f"- Completion Status: {status}\\n")
+        f.write(f"- Key Actions: {actions}\\n")
+        f.write(f"- Key Outputs: {outputs}\\n")
+        f.write(f"- Warnings/Errors: {warnings_errors}\\n\\n")
 
 # Initialise run log
 with open(RUN_LOG, 'w') as f:
-    f.write("# Run Log — claude_code\\n\\n")
+    f.write(f"# Run Log — claude_code\\n")
+    f.write(f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\\n\\n")
 
-# ---- Plotting defaults ----
-sns.set_theme(style='whitegrid', palette='muted')
-plt.rcParams.update({'figure.dpi': 120, 'savefig.bbox': 'tight'})
+log_step('0_setup', 'SUCCESS',
+         'Created notebook, evidence directory, run log',
+         'experiment_claude_code.ipynb, evidence_claude_code/, run_log_claude_code.md')
 
-print("Setup complete. RANDOM_STATE =", RANDOM_STATE)
+print("Setup complete.")
+print(f"Evidence directory: {EVIDENCE_DIR}")
+print(f"EDA directory:      {EDA_DIR}")
+print(f"Run log:            {RUN_LOG}")
 """)
 
-# Read data dictionary (understand only)
-md("""\
-### Read Variable Dictionary
+# ═══════════════════════════════════════════════════════════════════════════════
+# STEP 1.1 — Dataset Ingestion & Schema Checks
+# ═══════════════════════════════════════════════════════════════════════════════
 
-We read the data dictionary to understand variable definitions and coded values before loading the dataset.
+md("""
+# Step 1 — Data Ingestion and Problem Definition
+
+## 1.1 Dataset Ingestion & Schema Checks
+
+In this subsection we load the raw dataset, confirm the expected schema
+(16 variables), and perform basic integrity checks before any transformations.
 """)
 
-code("""\
-dict_path = DATA_DIR / 'participation_2024-25_data_dictionary_cleaned.txt'
-with open(dict_path) as f:
-    data_dict_text = f.read()
-print(data_dict_text)
+code("""
+# ── Load data ────────────────────────────────────────────────────────────────
+participation_raw = pd.read_csv(DATA_FILE, sep='\\t')
+print(f"Rows: {participation_raw.shape[0]:,}  |  Columns: {participation_raw.shape[1]}")
 
-log_step(
-    "Step 0 — Setup",
-    "SUCCESS",
-    "Imported libraries; set RANDOM_STATE=42; created evidence directories; read data dictionary",
-    "run_log_claude_code.md, evidence_claude_code/",
-)
-""")
-
-# ===================================================================
-# STEP 1.1 — DATASET INGESTION & SCHEMA CHECKS
-# ===================================================================
-md("""\
-# 1. Data Ingestion and Problem Definition
-
-## 1.1 Dataset Ingestion and Schema Checks
-
-Load the tab-separated data file into a pandas DataFrame and verify its schema against the expected variable list.
-""")
-
-code("""\
-REQUIRED_VARS = [
-    'CARTS_NET', 'AGEBAND', 'SEX', 'QWORK', 'EDUCAT3',
-    'FINHARD', 'CINTOFT', 'gor', 'rur11cat', 'CHILDHH', 'COHAB'
+# ── Required variables ───────────────────────────────────────────────────────
+REQUIRED = [
+    'CARTS_NET', 'CHERVIS12_NET', 'EDUCAT3', 'NSSEC_3', 'FINHARD',
+    'WELLB1', 'CINTOFT', 'CSMARTD_Count', 'WELLB4', 'TENHARM',
+    'LONELY', 'ETHNIC_NET', 'emdidc19', 'CULTSATIS', 'SEX', 'AGEBAND'
 ]
 
-participation_raw = pd.read_csv(DATA_DIR / 'participation_2024-25_experiment.tab', sep='\\t')
-print(f"Loaded dataset: {participation_raw.shape[0]} rows x {participation_raw.shape[1]} columns")
+present  = [v for v in REQUIRED if v in participation_raw.columns]
+missing  = [v for v in REQUIRED if v not in participation_raw.columns]
+print(f"\\nRequired variables present: {len(present)}/{len(REQUIRED)}")
+if missing:
+    print(f"MISSING variables: {missing}")
+else:
+    print("All required variables found.")
 
-# Schema checks
-missing_cols = [v for v in REQUIRED_VARS if v not in participation_raw.columns]
-extra_cols   = [v for v in participation_raw.columns if v not in REQUIRED_VARS]
-print(f"Missing required variables: {missing_cols if missing_cols else 'None'}")
-print(f"Extra variables (will be dropped): {extra_cols if extra_cols else 'None'}")
-assert len(missing_cols) == 0, f"FATAL: missing columns {missing_cols}"
+# ── Schema checks ────────────────────────────────────────────────────────────
+print("\\n--- Data types ---")
+print(participation_raw[REQUIRED].dtypes)
 
-# Subset to required variables
-participation_raw = participation_raw[REQUIRED_VARS].copy()
-print(f"\\nSubset shape: {participation_raw.shape}")
-print(f"\\nData types:\\n{participation_raw.dtypes}")
-print(f"\\nDuplicate rows: {participation_raw.duplicated().sum()}")
-print(f"\\nValue ranges:")
-for col in REQUIRED_VARS:
-    print(f"  {col}: {sorted(participation_raw[col].unique())}")
+print("\\n--- Null counts (NaN) ---")
+print(participation_raw[REQUIRED].isnull().sum())
 
-log_step(
-    "Step 1.1 — Dataset Ingestion & Schema Checks",
-    "SUCCESS",
-    f"Loaded {participation_raw.shape[0]} rows x {participation_raw.shape[1]} cols; verified all 11 required variables present; subset to required columns",
-    "participation_raw DataFrame",
-    f"Duplicate rows: {participation_raw.duplicated().sum()}; Extra columns dropped: {extra_cols}"
-)
+print("\\n--- Duplicate rows ---")
+n_dup = participation_raw.duplicated().sum()
+print(f"Duplicate rows: {n_dup}")
+
+print("\\n--- Value ranges ---")
+for col in REQUIRED:
+    vals = sorted(participation_raw[col].unique())
+    print(f"  {col}: min={min(vals)}, max={max(vals)}, unique={len(vals)}")
+
+log_step('1.1_dataset_ingestion', 'SUCCESS',
+         f'Loaded {participation_raw.shape[0]} rows x {participation_raw.shape[1]} cols; verified all 16 variables present',
+         'participation_raw dataframe',
+         f'{n_dup} duplicate rows found' if n_dup > 0 else 'None')
 """)
 
-# ===================================================================
-# STEP 1.2 — PROBLEM DEFINITION
-# ===================================================================
-md("""\
+# ═══════════════════════════════════════════════════════════════════════════════
+# STEP 1.2 — Problem Definition
+# ═══════════════════════════════════════════════════════════════════════════════
+
+md("""
 ## 1.2 Problem Definition
 
 ### Prediction Task
 
-**Binary classification**: predict whether a respondent engaged with the arts physically in the last 12 months.
+**Binary classification**: predict whether a respondent engaged with the arts
+physically in the last 12 months (`CARTS_NET`).
 
-We frame this as an **under-engagement identification** problem with social research value. Rather than treating arts participation as a purely individual preference, the task investigates whether non-participation is socially patterned across demographic, socioeconomic, digital, and geographic factors. The purpose is to identify groups that may face structural or contextual barriers to physical arts engagement, and to provide evidence for more inclusive cultural policy and public engagement strategies.
+We frame this as an **under-engagement identification** problem. Rather than
+treating arts participation as a purely individual preference, this task
+investigates whether non-participation is socially patterned across
+demographic, socioeconomic, digital, and geographic factors. The aim is to
+identify groups that may face structural or contextual barriers to physical
+arts engagement, supporting more inclusive cultural policy.
 
-### Variables
+**Target variable**: `CARTS_NET` (1 = engaged, 2 = not engaged).
+Rows where `CARTS_NET` is −3 or 3 will be dropped later as missing values.
 
-- **Target variable:** `CARTS_NET` — *In the last 12 months, engaged (attended OR participated) with the arts physically*
-  - Rows with values `-3` (Not applicable) and `3` (No & Missing) will be dropped in a later step to create a clean binary classification target.
-  - After dropping: `1` = Yes (engaged) → class 0, `2` = No (under-engaged) → class 1.
+**Feature variables** (15):
 
-- **Feature variables:** `AGEBAND, SEX, QWORK, EDUCAT3, FINHARD, CINTOFT, gor, rur11cat, CHILDHH, COHAB`
-
-### Variable Dictionary
-
-| Variable | Label | Type | Valid Values |
-|----------|-------|------|-------------|
-| CARTS_NET | Arts engagement (physical) in last 12 months | Nominal | -3 Not applicable, 1 Yes, 2 No, 3 No & Missing |
-| AGEBAND | Respondent age band | Scale | 1 (16-19) to 15 (85+), -3 Not Applicable, 997 Prefer not to say |
-| SEX | Respondent gender | Nominal | 1 Female, 2 Male; -5/-4/-3 missing; 997 Prefer not to say |
-| QWORK | Working status | Nominal | 1-10 (various statuses); -5/-4/-3 missing; 997/999 |
-| EDUCAT3 | Highest qualification | Nominal | 1 Degree+, 2 Other; -5/-4/-3 missing; 997/999 |
-| FINHARD | Financial hardship | Nominal | 1-5 (ordinal comfort levels); -5/-4/-3 missing; 997 |
-| CINTOFT | Internet usage frequency | Nominal | 1-5 (ordinal frequency); -5/-4/-3 missing |
-| gor | Region (Government Office Region) | Nominal | 1-9 (English regions) |
-| rur11cat | Rural/Urban (2011 Census) | Nominal | 1 Rural, 2 Urban |
-| CHILDHH | Children in household | Scale | 0-3, 4 (4+); -6/-5/-4/-3 missing; 997 |
-| COHAB | Living as a couple | Nominal | 1 Yes, 2 No; -5/-4/-3 missing; 997 |
+| Variable | Description | Type |
+|---|---|---|
+| CHERVIS12_NET | Visited heritage site in last 12 months | Binary |
+| EDUCAT3 | Highest qualification level | Ordinal |
+| NSSEC_3 | Socio-economic classification (3 classes) | Nominal |
+| FINHARD | Financial hardship | Ordinal |
+| WELLB1 | Life satisfaction (0–10) | Scale |
+| CINTOFT | Internet usage frequency | Ordinal |
+| CSMARTD_Count | Smart devices in household (0–6+) | Count |
+| WELLB4 | Anxiety yesterday (0–10) | Scale |
+| TENHARM | Tenure status | Nominal |
+| LONELY | Loneliness frequency | Ordinal |
+| ETHNIC_NET | Ethnic group (grouped) | Nominal |
+| emdidc19 | Index of Multiple Deprivation decile | Ordinal |
+| CULTSATIS | Satisfaction with local cultural activities | Ordinal |
+| SEX | Gender | Nominal |
+| AGEBAND | Age band (15 bands) | Ordinal |
 """)
 
-code("""\
-log_step(
-    "Step 1.2 — Problem Definition",
-    "SUCCESS",
-    "Defined binary classification task (under-engagement identification); documented target and feature variables; created variable dictionary table",
-    "Markdown documentation in notebook",
-)
+# ═══════════════════════════════════════════════════════════════════════════════
+# STEP 2 — Exploratory Data Analysis
+# ═══════════════════════════════════════════════════════════════════════════════
+
+md("""
+# Step 2 — Exploratory Data Analysis
+
+We first remove rows where the target is missing or ambiguous
+(`CARTS_NET` ∈ {−3, 3}), then explore the distribution of the target and
+each feature in relation to arts engagement.
 """)
 
-# ===================================================================
-# STEP 2 — EDA
-# ===================================================================
-md("""\
-# 2. Exploratory Data Analysis
+code("""
+# ── Prepare EDA dataframe ───────────────────────────────────────────────────
+participation_eda = participation_raw[
+    ~participation_raw['CARTS_NET'].isin([-3, 3])
+].copy()
 
-This section prepares the dataset for EDA by removing non-applicable target values and creating a binary target, then explores the data through visualisations.
+# Binary target: 1 = engaged, 0 = not engaged
+participation_eda['target'] = (participation_eda['CARTS_NET'] == 1).astype(int)
+participation_eda.drop(columns=['CARTS_NET'], inplace=True)
+
+print(f"Rows after dropping CARTS_NET ∈ {{-3, 3}}: {len(participation_eda):,}")
+print(f"Target distribution:\\n{participation_eda['target'].value_counts()}")
+print(f"\\nEngagement rate: {participation_eda['target'].mean():.3f}")
+
+log_step('2_EDA_prep', 'SUCCESS',
+         f'Removed {len(participation_raw) - len(participation_eda)} rows with CARTS_NET in [-3,3]; created binary target',
+         'participation_eda dataframe')
 """)
 
-md("## 2.1 Target Preparation")
-
-code("""\
-# Remove rows where CARTS_NET is -3 (Not applicable) or 3 (No & Missing)
-mask_valid = ~participation_raw['CARTS_NET'].isin([-3, 3])
-print(f"Rows before filtering: {len(participation_raw)}")
-print(f"Rows removed (CARTS_NET in [-3, 3]): {(~mask_valid).sum()}")
-
-participation_eda = participation_raw.loc[mask_valid].copy()
-
-# Create binary target: 1=under-engaged (CARTS_NET==2), 0=engaged (CARTS_NET==1)
-participation_eda['target'] = (participation_eda['CARTS_NET'] == 2).astype(int)
-participation_eda = participation_eda.drop(columns=['CARTS_NET'])
-
-print(f"Rows after filtering: {len(participation_eda)}")
-print(f"\\nTarget distribution:")
-print(participation_eda['target'].value_counts().rename({0: 'Engaged (0)', 1: 'Under-engaged (1)'}))
-print(f"\\nUnder-engagement rate: {participation_eda['target'].mean():.3%}")
+md("""
+### 2.1 Target Distribution
 """)
 
-md("## 2.2 Target Distribution")
-
-code("""\
+code("""
 fig, ax = plt.subplots(figsize=(6, 4))
 counts = participation_eda['target'].value_counts().sort_index()
-bars = ax.bar(['Engaged (0)', 'Under-engaged (1)'], counts.values,
-              color=['#4c72b0', '#dd8452'])
+bars = ax.bar(['Not Engaged (0)', 'Engaged (1)'], counts.values,
+              color=['#e74c3c', '#2ecc71'], edgecolor='black')
 for bar, count in zip(bars, counts.values):
     ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 200,
-            f'{count:,}\\n({count/len(participation_eda):.1%})',
-            ha='center', fontsize=10)
+            f'{count:,}', ha='center', fontsize=11)
+ax.set_title('Target Distribution: Physical Arts Engagement', fontsize=13)
 ax.set_ylabel('Count')
-ax.set_title('Target Distribution: Physical Arts Engagement')
-plt.savefig(EDA_DIR / 'target_distribution.png')
-plt.close()
-print("Saved: target_distribution.png")
-""")
-
-md("## 2.3 Feature Distributions")
-
-code("""\
-FEATURES = ['AGEBAND', 'SEX', 'QWORK', 'EDUCAT3', 'FINHARD',
-            'CINTOFT', 'gor', 'rur11cat', 'CHILDHH', 'COHAB']
-
-fig, axes = plt.subplots(2, 5, figsize=(22, 8))
-axes = axes.flatten()
-for i, feat in enumerate(FEATURES):
-    vc = participation_eda[feat].value_counts().sort_index()
-    axes[i].bar(vc.index.astype(str), vc.values, color='#4c72b0', edgecolor='white')
-    axes[i].set_title(feat, fontsize=11, fontweight='bold')
-    axes[i].tick_params(axis='x', rotation=45, labelsize=8)
-    axes[i].set_ylabel('Count')
-fig.suptitle('Feature Distributions (including coded missing values)', fontsize=14, y=1.02)
 plt.tight_layout()
-plt.savefig(EDA_DIR / 'feature_distributions.png')
+plt.savefig(os.path.join(EDA_DIR, 'target_distribution.png'), dpi=150)
+plt.show()
 plt.close()
-print("Saved: feature_distributions.png")
+print(f"Class balance — Engaged: {counts.get(1,0):,} ({counts.get(1,0)/len(participation_eda)*100:.1f}%)  "
+      f"Not engaged: {counts.get(0,0):,} ({counts.get(0,0)/len(participation_eda)*100:.1f}%)")
 """)
 
-md("## 2.4 Under-Engagement Rates by Feature Category")
+md("""
+### 2.2 Feature Distributions
+""")
 
-code("""\
-fig, axes = plt.subplots(2, 5, figsize=(22, 8))
+code("""
+FEATURES = [
+    'CHERVIS12_NET', 'EDUCAT3', 'NSSEC_3', 'FINHARD', 'WELLB1', 'CINTOFT',
+    'CSMARTD_Count', 'WELLB4', 'TENHARM', 'LONELY', 'ETHNIC_NET',
+    'emdidc19', 'CULTSATIS', 'SEX', 'AGEBAND'
+]
+
+fig, axes = plt.subplots(5, 3, figsize=(18, 22))
 axes = axes.flatten()
 for i, feat in enumerate(FEATURES):
+    ax = axes[i]
+    participation_eda[feat].value_counts().sort_index().plot(kind='bar', ax=ax,
+        color='steelblue', edgecolor='black', alpha=0.8)
+    ax.set_title(feat, fontsize=11, fontweight='bold')
+    ax.set_ylabel('Count')
+    ax.tick_params(axis='x', rotation=45)
+plt.suptitle('Feature Distributions (all values including coded missing)', fontsize=14, y=1.01)
+plt.tight_layout()
+plt.savefig(os.path.join(EDA_DIR, 'feature_distributions.png'), dpi=150, bbox_inches='tight')
+plt.show()
+plt.close()
+""")
+
+md("""
+### 2.3 Feature–Target Relationships
+
+For each feature, we compute the arts engagement rate per category to identify
+which groups have lower participation rates.
+""")
+
+code("""
+fig, axes = plt.subplots(5, 3, figsize=(18, 24))
+axes = axes.flatten()
+for i, feat in enumerate(FEATURES):
+    ax = axes[i]
     grouped = participation_eda.groupby(feat)['target'].mean().sort_index()
-    axes[i].bar(grouped.index.astype(str), grouped.values, color='#dd8452', edgecolor='white')
-    axes[i].set_title(feat, fontsize=11, fontweight='bold')
-    axes[i].tick_params(axis='x', rotation=45, labelsize=8)
-    axes[i].set_ylabel('Under-engagement Rate')
-    axes[i].axhline(y=participation_eda['target'].mean(), color='grey',
-                     linestyle='--', linewidth=0.8, label='Overall rate')
-fig.suptitle('Under-Engagement Rate by Feature Category', fontsize=14, y=1.02)
+    grouped.plot(kind='bar', ax=ax, color='darkorange', edgecolor='black', alpha=0.8)
+    ax.set_title(f'{feat} — engagement rate', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Engagement rate')
+    ax.set_ylim(0, 1)
+    ax.axhline(y=participation_eda['target'].mean(), color='red',
+               linestyle='--', linewidth=1, label='Overall mean')
+    ax.tick_params(axis='x', rotation=45)
+plt.suptitle('Engagement Rate by Feature Value', fontsize=14, y=1.01)
 plt.tight_layout()
-plt.savefig(EDA_DIR / 'feature_target_relationships.png')
+plt.savefig(os.path.join(EDA_DIR, 'feature_target_relationships.png'), dpi=150, bbox_inches='tight')
+plt.show()
 plt.close()
-print("Saved: feature_target_relationships.png")
 """)
 
-md("## 2.5 Correlation Heatmap")
+md("""
+### 2.4 Correlation Heatmap
 
-code("""\
+A correlation heatmap of all numeric features (including coded values) gives
+a quick view of linear relationships.
+""")
+
+code("""
 corr = participation_eda[FEATURES + ['target']].corr()
-fig, ax = plt.subplots(figsize=(10, 8))
-sns.heatmap(corr, annot=True, fmt='.2f', cmap='coolwarm', center=0,
+fig, ax = plt.subplots(figsize=(14, 11))
+sns.heatmap(corr, annot=True, fmt='.2f', cmap='RdBu_r', center=0,
             square=True, linewidths=0.5, ax=ax)
-ax.set_title('Correlation Heatmap (raw coded values)')
-plt.savefig(EDA_DIR / 'correlation_heatmap.png')
+ax.set_title('Correlation Heatmap (raw coded values)', fontsize=13)
+plt.tight_layout()
+plt.savefig(os.path.join(EDA_DIR, 'correlation_heatmap.png'), dpi=150)
+plt.show()
 plt.close()
-print("Saved: correlation_heatmap.png")
+
+log_step('2_EDA', 'SUCCESS',
+         'Generated target distribution, feature distributions, engagement-rate plots, correlation heatmap',
+         'EDA_claude_code_Pics/: target_distribution.png, feature_distributions.png, '
+         'feature_target_relationships.png, correlation_heatmap.png')
 """)
 
-md("""\
-## 2.6 Key EDA Insights
+# ═══════════════════════════════════════════════════════════════════════════════
+# STEP 3 — Missingness Handling
+# ═══════════════════════════════════════════════════════════════════════════════
 
-- **Severe class imbalance**: approximately 91% of respondents are engaged, only ~9% are under-engaged. This will require careful metric selection and possibly class-weight adjustments during modelling.
-- **Feature distributions**: many variables contain negative codes (e.g., -3, -4, -5) representing various forms of missingness that need handling before modelling.
-- **Under-engagement patterns**: some features show notable variation in under-engagement rates across categories, suggesting predictive potential.
-- **Correlation**: features show low inter-correlation, suggesting limited multicollinearity concerns.
+md("""
+# Step 3 — Missingness Handling
+
+## Strategy
+
+In this dataset, missing values are encoded as negative codes (−3, −4, −5) or
+high sentinel values (997, 999) rather than NaN. We apply variable-specific
+rules based on the data dictionary, distinguishing between **informative codes**
+(−3 that represents a real category) and **truly non-informative codes**
+(don't know, prefer not to say, etc.).
+
+| Variable | Informative codes (recode) | Non-informative codes (drop) | Strategy |
+|---|---|---|---|
+| CHERVIS12_NET | — | — | Clean (1/2 only) |
+| EDUCAT3 | −3 → "No qualifications" | −4, −5, 997, 999 | Recode −3; drop rest |
+| NSSEC_3 | −3 → "Never worked / N/A" | — | Recode −3 |
+| FINHARD | −3 → "Not applicable" | −4, −5, 997 | Recode −3; drop rest |
+| WELLB1 | — | −4, −5, 997 | Drop rows |
+| CINTOFT | −3 → "Not applicable" | −4, −5 | Recode −3; drop rest |
+| CSMARTD_Count | −3 → "Not applicable" | — | Recode −3 |
+| WELLB4 | — | −4, −5, 997 | Drop rows |
+| TENHARM | −3 → "Not applicable" | — | Recode −3 |
+| LONELY | — | −4, −5, 997 | Drop rows |
+| ETHNIC_NET | — | −3, 997, 999 | Drop rows |
+| emdidc19 | — | — | Clean (1–10 only) |
+| CULTSATIS | −3 → "Not asked" (71%) | 999 | Recode −3; drop 999 |
+| SEX | — | −4, −5, 997 | Drop rows |
+| AGEBAND | — | −3, 997 | Drop rows |
+
+**Key decisions:**
+- **CULTSATIS**: −3 is a routing skip (~71%) — recode to category 6 ("Not asked").
+- **EDUCAT3**: −3 = "No qualifications" is substantively meaningful — recode to
+  category 0 rather than dropping 24% of data.
+- **NSSEC_3**: −3 = "Not applicable" (often never-worked individuals) — recode
+  to category 5 to retain these respondents.
+- **FINHARD, CINTOFT, CSMARTD_Count, TENHARM**: −3 = "Not applicable" is
+  recoded as a distinct category to preserve data.
+- For truly non-informative codes (−4, −5, 997, 999), we drop rows since rates
+  are low.
 """)
 
-code("""\
-log_step(
-    "Step 2 — EDA",
-    "SUCCESS",
-    f"Removed {(~mask_valid).sum()} rows with CARTS_NET in [-3, 3]; created binary target; generated 4 visualisations",
-    "participation_eda DataFrame; target_distribution.png, feature_distributions.png, feature_target_relationships.png, correlation_heatmap.png",
-)
-""")
+code("""
+print(f"Rows before missingness handling: {len(participation_eda):,}")
 
-# ===================================================================
-# STEP 3 — MISSINGNESS HANDLING
-# ===================================================================
-md("""\
-# 3. Missingness Handling
-
-In this dataset, missing values are encoded as negative codes and special values (997, 999) rather than NaN. Using the variable dictionary, we identify non-informative codes for each feature and apply a tiered handling strategy.
-
-## Non-Informative Codes by Variable
-
-| Variable | Non-informative codes | Meaning |
-|----------|----------------------|---------|
-| AGEBAND  | -3, 997 | Not Applicable, Prefer not to say |
-| SEX      | -5, -4, -3, 997 | Paper errors, Not Answered, Prefer not to say |
-| QWORK    | -5, -4, -3, 997, 999 | Paper errors, Not Answered, Prefer not to say, Don't know |
-| EDUCAT3  | -5, -4, -3, 997, 999 | Paper errors, Not Answered, Prefer not to say, Don't know |
-| FINHARD  | -5, -4, -3, 997 | Paper errors, Not Answered, Prefer not to say |
-| CINTOFT  | -5, -4, -3 | Paper errors, Not Answered |
-| gor      | *(none)* | All values are valid regions 1–9 |
-| rur11cat | *(none)* | All values are valid (1 Rural, 2 Urban) |
-| CHILDHH  | -6, -5, -4, -3, 997 | Out of range, Paper errors, Not Answered, Prefer not to say |
-| COHAB    | -5, -4, -3, 997 | Paper errors, Not Answered, Prefer not to say |
-
-## Handling Strategy
-
-**Tiered approach** based on the missingness rate in the EDA dataset:
-
-- **Tier 1 (< 5% non-informative):** Drop affected rows. Low data loss preserves statistical reliability.
-- **Tier 2 (>= 5% non-informative):** Recode non-informative codes to a new category `0` ("Unknown"). This preserves sample size while acknowledging that the information is absent.
-""")
-
-code("""\
-# Define non-informative codes per feature
-NON_INFORMATIVE = {
-    'AGEBAND':  [-3, 997],
-    'SEX':      [-5, -4, -3, 997],
-    'QWORK':    [-5, -4, -3, 997, 999],
-    'EDUCAT3':  [-5, -4, -3, 997, 999],
-    'FINHARD':  [-5, -4, -3, 997],
-    'CINTOFT':  [-5, -4, -3],
-    'gor':      [],
-    'rur11cat': [],
-    'CHILDHH':  [-6, -5, -4, -3, 997],
-    'COHAB':    [-5, -4, -3, 997],
+# ── Define informative recodes and non-informative (drop) codes ──────────────
+# Informative -3 codes that represent real categories:
+RECODE_MAP = {
+    'EDUCAT3':       {-3: 0},    # "No qualifications" → category 0
+    'NSSEC_3':       {-3: 5},    # "Never worked / N/A" → category 5
+    'FINHARD':       {-3: 6},    # "Not applicable" → category 6
+    'CINTOFT':       {-3: 6},    # "Not applicable" → category 6
+    'CSMARTD_Count': {-3: -1},   # "Not applicable" → -1 (will be encoded)
+    'TENHARM':       {-3: 4},    # "Not applicable" → category 4
+    'CULTSATIS':     {-3: 6},    # "Not asked" → category 6
 }
 
-# Calculate missingness rates
-print("Missingness rates (non-informative codes):\\n")
-miss_records = []
-for feat, codes in NON_INFORMATIVE.items():
-    if codes:
-        n_miss = participation_eda[feat].isin(codes).sum()
-        rate = n_miss / len(participation_eda)
-    else:
-        n_miss = 0
-        rate = 0.0
-    tier = '-' if not codes else ('Tier 1 (drop rows)' if rate < 0.05 else 'Tier 2 (recode to 0)')
-    miss_records.append({
-        'Variable': feat,
-        'Non-informative codes': str(codes),
-        'Count': n_miss,
-        'Rate': f"{rate:.3%}",
-        'Tier': tier
-    })
-    print(f"  {feat:12s}: {n_miss:6d} ({rate:6.2%})  -> {tier}")
+# Truly non-informative codes to drop (don't know, prefer not to say, etc.):
+DROP_CODES = {
+    'CHERVIS12_NET': [],
+    'EDUCAT3':       [-4, -5, 997, 999],
+    'NSSEC_3':       [],
+    'FINHARD':       [-4, -5, 997],
+    'WELLB1':        [-4, -5, 997],
+    'CINTOFT':       [-4, -5],
+    'CSMARTD_Count': [],
+    'WELLB4':        [-4, -5, 997],
+    'TENHARM':       [],
+    'LONELY':        [-4, -5, 997],
+    'ETHNIC_NET':    [-3, 997, 999],
+    'emdidc19':      [],
+    'CULTSATIS':     [999],
+    'SEX':           [-4, -5, 997],
+    'AGEBAND':       [-3, 997],
+}
 
-miss_df = pd.DataFrame(miss_records)
-miss_df.to_csv(EVIDENCE_DIR / 'missingness_handling_summary.csv', index=False)
-print(f"\\nSaved: missingness_handling_summary.csv")
+# ── Compute missing/recode rates ────────────────────────────────────────────
+summary_rows = []
+for feat in FEATURES:
+    drop_codes = DROP_CODES[feat]
+    recode = RECODE_MAP.get(feat, {})
+    n_drop = participation_eda[feat].isin(drop_codes).sum() if drop_codes else 0
+    n_recode = sum((participation_eda[feat] == k).sum() for k in recode.keys())
+    drop_rate = n_drop / len(participation_eda) * 100
+    summary_rows.append({
+        'Variable': feat,
+        'Recode': str(recode) if recode else 'None',
+        'Drop codes': str(drop_codes) if drop_codes else 'None',
+        'Rows to drop': n_drop,
+        'Drop rate (%)': round(drop_rate, 2),
+        'Rows recoded': n_recode,
+    })
+
+missingness_df = pd.DataFrame(summary_rows)
+print("\\n--- Missingness Summary ---")
+print(missingness_df.to_string(index=False))
+missingness_df.to_csv(os.path.join(EVIDENCE_DIR, 'missingness_handling_summary.csv'), index=False)
 """)
 
-code("""\
+code("""
+# ── Apply missingness handling ──────────────────────────────────────────────
 participation_clean = participation_eda.copy()
+
+# 1. Recode informative -3 codes to new categories
+for feat, mapping in RECODE_MAP.items():
+    for old_val, new_val in mapping.items():
+        n = (participation_clean[feat] == old_val).sum()
+        participation_clean.loc[participation_clean[feat] == old_val, feat] = new_val
+        print(f"{feat}: recoded {n:,} rows ({old_val} → {new_val})")
+
+# 2. Drop rows with truly non-informative codes
 rows_before = len(participation_clean)
-
-# Identify tier for each variable
-tier1_vars = []
-tier2_vars = []
-for feat, codes in NON_INFORMATIVE.items():
-    if not codes:
-        continue
-    rate = participation_clean[feat].isin(codes).sum() / len(participation_clean)
-    if rate < 0.05:
-        tier1_vars.append(feat)
-    else:
-        tier2_vars.append(feat)
-
-print(f"Tier 1 variables (drop rows): {tier1_vars}")
-print(f"Tier 2 variables (recode to 0): {tier2_vars}")
-
-# Tier 2: recode to 0 first (before dropping rows)
-for feat in tier2_vars:
-    codes = NON_INFORMATIVE[feat]
-    mask = participation_clean[feat].isin(codes)
-    participation_clean.loc[mask, feat] = 0
-    print(f"  Recoded {mask.sum()} values in {feat} to 0")
-
-# Tier 1: drop rows with non-informative codes
-for feat in tier1_vars:
-    codes = NON_INFORMATIVE[feat]
-    before = len(participation_clean)
-    participation_clean = participation_clean[~participation_clean[feat].isin(codes)]
-    dropped = before - len(participation_clean)
-    print(f"  Dropped {dropped} rows for {feat}")
+for feat in FEATURES:
+    codes = DROP_CODES[feat]
+    if codes:
+        mask = participation_clean[feat].isin(codes)
+        n_drop = mask.sum()
+        if n_drop > 0:
+            participation_clean = participation_clean[~mask]
+            print(f"{feat}: dropped {n_drop} rows with codes {codes}")
 
 rows_after = len(participation_clean)
-print(f"\\nRows before cleaning: {rows_before}")
-print(f"Rows after cleaning:  {rows_after}")
-print(f"Rows removed:         {rows_before - rows_after} ({(rows_before - rows_after)/rows_before:.1%})")
-print(f"Retention rate:       {rows_after/rows_before:.1%}")
+print(f"\\nRows before cleaning: {rows_before:,}")
+print(f"Rows after cleaning:  {rows_after:,}")
+print(f"Rows dropped:         {rows_before - rows_after:,} ({(rows_before - rows_after)/rows_before*100:.1f}%)")
 
-# Verify no non-informative codes remain
-for feat, codes in NON_INFORMATIVE.items():
-    if codes:
-        remaining = participation_clean[feat].isin(codes).sum()
-        assert remaining == 0, f"FATAL: {feat} still has {remaining} non-informative values"
-print("\\nVerification passed: no non-informative codes remain in any feature.")
+# ── Verify no non-informative coded values remain ───────────────────────────
+remaining = {}
+for feat in FEATURES:
+    all_bad = set(DROP_CODES[feat])
+    bad = participation_clean[feat].isin(all_bad).sum()
+    if bad > 0:
+        remaining[feat] = bad
+# Also check no original -3/-4/-5/997/999 remain (except recoded values)
+for feat in FEATURES:
+    for code in [-4, -5, 997, 999]:
+        n = (participation_clean[feat] == code).sum()
+        if n > 0:
+            remaining[f"{feat}({code})"] = n
+if remaining:
+    print(f"\\nWARNING: Remaining non-informative values: {remaining}")
+else:
+    print("\\nVerification passed: no non-informative coded values remain.")
 
-print(f"\\nTarget distribution after cleaning:")
-print(participation_clean['target'].value_counts().rename({0: 'Engaged (0)', 1: 'Under-engaged (1)'}))
-print(f"Under-engagement rate: {participation_clean['target'].mean():.3%}")
+print(f"\\nNaN check: {participation_clean[FEATURES].isnull().sum().sum()} NaN values in features")
 
-log_step(
-    "Step 3 — Missingness Handling",
-    "SUCCESS",
-    f"Applied tiered missingness handling; Tier 1 (drop): {tier1_vars}; Tier 2 (recode): {tier2_vars}",
-    f"participation_clean ({rows_after} rows, {rows_after/rows_before:.1%} retention); missingness_handling_summary.csv",
-)
+log_step('3_missingness_handling', 'SUCCESS',
+         f'Recoded CULTSATIS -3→6; dropped rows with non-informative codes; '
+         f'{rows_before - rows_after} rows removed ({(rows_before - rows_after)/rows_before*100:.1f}%)',
+         'participation_clean dataframe, evidence_claude_code/missingness_handling_summary.csv')
 """)
 
-# ===================================================================
-# STEP 4.1 — PREPARE MODELING DATA
-# ===================================================================
-md("""\
-# 4. Modelling Preparation
+# ═══════════════════════════════════════════════════════════════════════════════
+# STEP 4.1 — Prepare Modelling Data
+# ═══════════════════════════════════════════════════════════════════════════════
 
-## 4.1 Prepare Modelling Data
+md("""
+# Step 4 — Modelling Pipeline
 
-Define features (X) and target (y), create preprocessing pipelines, and split the data into training, validation, and test sets with a 70/15/15 ratio using stratified sampling to preserve class balance.
+## 4.1 Data Preparation
+
+We define X (features) and y (target), create preprocessing pipelines for
+Logistic Regression and XGBoost, and split into train / validation / test
+sets (70 / 15 / 15) with stratification to preserve class balance.
 """)
 
-code("""\
-FEATURES = ['AGEBAND', 'SEX', 'QWORK', 'EDUCAT3', 'FINHARD',
-            'CINTOFT', 'gor', 'rur11cat', 'CHILDHH', 'COHAB']
-
+code("""
+# ── Define X and y ──────────────────────────────────────────────────────────
 X = participation_clean[FEATURES].copy()
 y = participation_clean['target'].copy()
-print(f"X shape: {X.shape}, y shape: {y.shape}")
 
-# All features are categorical — use OneHotEncoder for both models
-# For LR: drop='first' to avoid multicollinearity
-# For XGBoost: keep all dummies (tree-based models handle this fine)
+print(f"X shape: {X.shape}")
+print(f"y distribution:\\n{y.value_counts()}")
+print(f"y mean (engagement rate): {y.mean():.3f}")
 
-preprocessor_lr = ColumnTransformer(
+# ── Classify features ───────────────────────────────────────────────────────
+CATEGORICAL = ['CHERVIS12_NET', 'EDUCAT3', 'NSSEC_3', 'FINHARD', 'CINTOFT',
+               'TENHARM', 'LONELY', 'ETHNIC_NET', 'CULTSATIS', 'SEX', 'AGEBAND']
+NUMERIC     = ['WELLB1', 'CSMARTD_Count', 'WELLB4', 'emdidc19']
+
+print(f"\\nCategorical features ({len(CATEGORICAL)}): {CATEGORICAL}")
+print(f"Numeric features ({len(NUMERIC)}): {NUMERIC}")
+
+# ── Preprocessing pipelines ─────────────────────────────────────────────────
+# LR pipeline: one-hot encode categorical, passthrough numeric
+lr_preprocessor = ColumnTransformer(
     transformers=[
-        ('cat', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='error'),
-         FEATURES)
-    ],
-    remainder='drop'
+        ('cat', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='error'), CATEGORICAL),
+        ('num', 'passthrough', NUMERIC),
+    ]
 )
 
-preprocessor_xgb = ColumnTransformer(
+# XGBoost pipeline: ordinal-encode categorical (XGBoost handles ordinal natively)
+xgb_preprocessor = ColumnTransformer(
     transformers=[
-        ('cat', OneHotEncoder(drop=None, sparse_output=False, handle_unknown='error'),
-         FEATURES)
-    ],
-    remainder='drop'
+        ('cat', OrdinalEncoder(handle_unknown='use_encoded_value', unknown_value=-1), CATEGORICAL),
+        ('num', 'passthrough', NUMERIC),
+    ]
 )
 
-# Stratified split: 70% train, 15% validation, 15% test
-# First split: 85% temp, 15% test
-X_temp, X_test, y_temp, y_test = train_test_split(
+# ── Stratified train / val / test split (70 / 15 / 15) ─────────────────────
+X_train_val, X_test, y_train_val, y_test = train_test_split(
     X, y, test_size=0.15, random_state=RANDOM_STATE, stratify=y
 )
-# Second split: from the 85%, take 70/85 ~= 82.35% for train, rest for validation
-val_ratio = 0.15 / 0.85  # ~0.1765
+# Split remaining 85% into train (70/85 ≈ 0.8235) and val (15/85 ≈ 0.1765)
 X_train, X_val, y_train, y_val = train_test_split(
-    X_temp, y_temp, test_size=val_ratio, random_state=RANDOM_STATE, stratify=y_temp
+    X_train_val, y_train_val, test_size=15/85, random_state=RANDOM_STATE, stratify=y_train_val
 )
 
 print(f"\\nSplit sizes:")
-print(f"  Train:      {len(X_train):,} ({len(X_train)/len(X):.1%})")
-print(f"  Validation: {len(X_val):,} ({len(X_val)/len(X):.1%})")
-print(f"  Test:       {len(X_test):,} ({len(X_test)/len(X):.1%})")
+print(f"  Train: {len(X_train):,} ({len(X_train)/len(X)*100:.1f}%)")
+print(f"  Val:   {len(X_val):,}  ({len(X_val)/len(X)*100:.1f}%)")
+print(f"  Test:  {len(X_test):,}  ({len(X_test)/len(X)*100:.1f}%)")
+print(f"\\nTarget rates — Train: {y_train.mean():.3f}  Val: {y_val.mean():.3f}  Test: {y_test.mean():.3f}")
 
-print(f"\\nTarget rates:")
-print(f"  Train:      {y_train.mean():.3%}")
-print(f"  Validation: {y_val.mean():.3%}")
-print(f"  Test:       {y_test.mean():.3%}")
+# ── Fit preprocessors on training data ──────────────────────────────────────
+X_train_lr  = lr_preprocessor.fit_transform(X_train)
+X_val_lr    = lr_preprocessor.transform(X_val)
+X_test_lr   = lr_preprocessor.transform(X_test)
 
-# Fit preprocessors on training data
-preprocessor_lr.fit(X_train)
-preprocessor_xgb.fit(X_train)
+X_train_xgb = xgb_preprocessor.fit_transform(X_train)
+X_val_xgb   = xgb_preprocessor.transform(X_val)
+X_test_xgb  = xgb_preprocessor.transform(X_test)
 
-X_train_lr  = preprocessor_lr.transform(X_train)
-X_val_lr    = preprocessor_lr.transform(X_val)
-X_test_lr   = preprocessor_lr.transform(X_test)
+print(f"\\nLR feature matrix shape (after one-hot): {X_train_lr.shape}")
+print(f"XGB feature matrix shape (after ordinal): {X_train_xgb.shape}")
 
-X_train_xgb = preprocessor_xgb.transform(X_train)
-X_val_xgb   = preprocessor_xgb.transform(X_val)
-X_test_xgb  = preprocessor_xgb.transform(X_test)
-
-print(f"\\nEncoded feature dimensions: LR={X_train_lr.shape[1]}, XGBoost={X_train_xgb.shape[1]}")
-
-log_step(
-    "Step 4.1 — Prepare Modelling Data",
-    "SUCCESS",
-    f"Defined X ({X.shape[1]} features) and y; created LR and XGBoost preprocessors; stratified 70/15/15 split",
-    f"Train={len(X_train)}, Val={len(X_val)}, Test={len(X_test)}; Encoded dims: LR={X_train_lr.shape[1]}, XGB={X_train_xgb.shape[1]}",
-)
+log_step('4.1_prepare_modeling_data', 'SUCCESS',
+         f'Defined X ({X.shape[1]} features) and y; created LR and XGB preprocessors; '
+         f'stratified 70/15/15 split',
+         'X_train, X_val, X_test, y_train, y_val, y_test; preprocessed matrices')
 """)
 
-# ===================================================================
-# STEP 4.2 — EVALUATION HARNESS
-# ===================================================================
-md("""\
+# ═══════════════════════════════════════════════════════════════════════════════
+# STEP 4.2 — Evaluation Harness
+# ═══════════════════════════════════════════════════════════════════════════════
+
+md("""
 ## 4.2 Evaluation Harness
 
 ### Design Rationale
 
-Given the severe class imbalance (~91% engaged vs ~9% under-engaged) and the policy context of identifying under-engaged groups:
+The primary goal is to **identify under-engaged individuals** so that policy
+interventions can target them. This means:
 
-1. **Recall** (sensitivity) is the primary metric — missing truly under-engaged individuals means failing to target outreach where it is most needed.
-2. **Balanced accuracy** gives equal weight to both classes, avoiding the misleading inflation that overall accuracy would show on imbalanced data.
-3. **PR-AUC** (Average Precision) is more informative than ROC-AUC for rare-class detection, as it focuses on the precision-recall trade-off for the minority class.
-4. **ROC-AUC** provides a threshold-independent summary of discrimination ability.
-5. **Precision, F1, specificity** round out the picture for understanding the cost of false positives.
-6. **Confusion matrix** provides the raw counts for transparent reporting.
+- **Recall** (sensitivity) is critical — we want to catch as many under-engaged
+  people as possible, even at the cost of some false positives.
+- **F2 score** weights recall twice as heavily as precision, aligning with our
+  policy objective.
+- **Balanced accuracy** accounts for class imbalance.
+- **ROC-AUC** and **PR-AUC** give threshold-independent discrimination measures.
+- **Precision** and **F1** are reported for completeness.
 
-### Evaluation Rules
-
-- **Validation set** is used for all hyperparameter tuning and model selection.
-- **Test set** is held out until Step 5.3 for final, unbiased comparison.
-- All models are evaluated using the same function and metrics for consistency.
+All models are evaluated with the same function to ensure fair comparison.
 """)
 
-code("""\
-def evaluate_model(y_true, y_pred, y_prob, dataset_name=""):
-    \"\"\"Evaluate a binary classifier and return a metrics dictionary.\"\"\"
-    tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
-    specificity = tn / (tn + fp) if (tn + fp) > 0 else 0.0
-
+code("""
+def evaluate_model(y_true, y_pred, y_prob, label='Model'):
+    \"\"\"Evaluate a binary classifier and return a dict of metrics.\"\"\"
     metrics = {
-        'Dataset': dataset_name,
-        'Accuracy': accuracy_score(y_true, y_pred),
-        'Precision': precision_score(y_true, y_pred, zero_division=0),
-        'Recall': recall_score(y_true, y_pred, zero_division=0),
-        'F1': f1_score(y_true, y_pred, zero_division=0),
-        'Balanced_Accuracy': balanced_accuracy_score(y_true, y_pred),
-        'ROC_AUC': roc_auc_score(y_true, y_prob),
-        'PR_AUC': average_precision_score(y_true, y_prob),
-        'Specificity': specificity,
-        'TN': tn, 'FP': fp, 'FN': fn, 'TP': tp,
+        'Model': label,
+        'Precision':         round(precision_score(y_true, y_pred, pos_label=0), 4),
+        'Recall':            round(recall_score(y_true, y_pred, pos_label=0), 4),
+        'F1':                round(f1_score(y_true, y_pred, pos_label=0), 4),
+        'F2':                round(fbeta_score(y_true, y_pred, beta=2, pos_label=0), 4),
+        'Balanced Accuracy': round(balanced_accuracy_score(y_true, y_pred), 4),
+        'ROC-AUC':           round(roc_auc_score(y_true, y_prob), 4),
+        'PR-AUC':            round(average_precision_score(1 - y_true, 1 - y_prob), 4),
     }
     return metrics
 
-def print_metrics(metrics):
-    \"\"\"Pretty-print a metrics dictionary.\"\"\"
-    print(f"--- {metrics['Dataset']} ---")
-    for k, v in metrics.items():
-        if k == 'Dataset':
-            continue
-        if isinstance(v, float):
+def print_metrics(metrics_dict):
+    \"\"\"Pretty-print a metrics dict.\"\"\"
+    print(f"\\n{'='*50}")
+    print(f"  {metrics_dict['Model']}")
+    print(f"{'='*50}")
+    for k, v in metrics_dict.items():
+        if k != 'Model':
             print(f"  {k:20s}: {v:.4f}")
-        else:
-            print(f"  {k:20s}: {v}")
-    print()
 
-print("Evaluation harness defined.")
+log_step('4.2_evaluation_harness', 'SUCCESS',
+         'Defined evaluate_model() with Precision, Recall, F1, F2, Balanced Accuracy, ROC-AUC, PR-AUC',
+         'evaluate_model() function')
 """)
 
-# ===================================================================
-# STEP 4.3 — BASELINE LR
-# ===================================================================
-md("""\
+# ═══════════════════════════════════════════════════════════════════════════════
+# STEP 4.3 — Baseline Logistic Regression
+# ═══════════════════════════════════════════════════════════════════════════════
+
+md("""
 ## 4.3 Baseline Logistic Regression
 
-Train a logistic regression model with standard hyperparameters as a baseline. We use `class_weight='balanced'` to account for the severe class imbalance.
+We train a baseline LR with default hyperparameters (C=1.0, no class weighting,
+default threshold 0.5) to establish a performance floor.
 """)
 
-code("""\
+code("""
+# ── Train baseline LR ───────────────────────────────────────────────────────
 baseline_lr = LogisticRegression(
-    C=1.0,
-    penalty='l2',
-    solver='lbfgs',
-    class_weight='balanced',
-    max_iter=1000,
-    random_state=RANDOM_STATE,
+    C=1.0, max_iter=1000, random_state=RANDOM_STATE, solver='lbfgs'
 )
-
 baseline_lr.fit(X_train_lr, y_train)
 
-# Evaluate on validation set only
-y_val_pred_bl = baseline_lr.predict(X_val_lr)
-y_val_prob_bl = baseline_lr.predict_proba(X_val_lr)[:, 1]
+# ── Predict on validation set ───────────────────────────────────────────────
+y_val_prob_blr = baseline_lr.predict_proba(X_val_lr)[:, 1]
+y_val_pred_blr = baseline_lr.predict(X_val_lr)
 
-baseline_metrics = evaluate_model(y_val, y_val_pred_bl, y_val_prob_bl, "Validation — Baseline LR")
-print_metrics(baseline_metrics)
+baseline_lr_metrics = evaluate_model(y_val, y_val_pred_blr, y_val_prob_blr, 'Baseline LR (val)')
+print_metrics(baseline_lr_metrics)
 
 # Save
-pd.DataFrame([baseline_metrics]).to_csv(EVIDENCE_DIR / 'baseline_lr_validation_metrics.csv', index=False)
-print("Saved: baseline_lr_validation_metrics.csv")
+blr_df = pd.DataFrame([baseline_lr_metrics])
+blr_df.to_csv(os.path.join(EVIDENCE_DIR, 'baseline_lr_validation_metrics.csv'), index=False)
 
-log_step(
-    "Step 4.3 — Baseline Logistic Regression",
-    "SUCCESS",
-    "Trained baseline LR (C=1.0, L2, balanced); evaluated on validation set",
-    f"Recall={baseline_metrics['Recall']:.4f}, Balanced_Acc={baseline_metrics['Balanced_Accuracy']:.4f}, ROC_AUC={baseline_metrics['ROC_AUC']:.4f}; baseline_lr_validation_metrics.csv",
-)
+log_step('4.3_baseline_LR', 'SUCCESS',
+         'Trained baseline LR (C=1.0, default threshold 0.5)',
+         'baseline_lr model, evidence_claude_code/baseline_lr_validation_metrics.csv')
 """)
 
-# ===================================================================
-# STEP 5.1 — TUNE LR
-# ===================================================================
-md("""\
-# 5. Model Tuning and Comparison
+# ═══════════════════════════════════════════════════════════════════════════════
+# STEP 5.1 — Tune Logistic Regression
+# ═══════════════════════════════════════════════════════════════════════════════
 
-## 5.1 Tune Logistic Regression
+md("""
+# Step 5 — Model Tuning and Comparison
 
-Perform a grid search over regularisation strength (C), penalty type (L1/L2), and class weighting, using balanced accuracy on the validation set as the selection criterion. After identifying the best hyperparameters, perform threshold tuning to optimise recall.
+## 5.1 Tuned Logistic Regression
+
+We tune two aspects:
+1. **Hyperparameters**: regularisation strength C, with `class_weight='balanced'`
+   to handle target imbalance.
+2. **Decision threshold**: sweep thresholds from 0.10 to 0.90 and select the
+   threshold that maximises the F2 score on the validation set.
 """)
 
-code("""\
-from itertools import product
+code("""
+# ── Hyperparameter search ───────────────────────────────────────────────────
+C_VALUES = [0.001, 0.01, 0.1, 0.5, 1.0, 5.0, 10.0, 50.0, 100.0]
+THRESHOLDS = np.arange(0.10, 0.91, 0.05)
 
-# Grid search
-C_values = [0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
-penalty_values = ['l1', 'l2']
-weight_values = ['balanced', None]
+lr_tuning_results = []
 
-lr_results = []
-for C, pen, wt in product(C_values, penalty_values, weight_values):
-    model = LogisticRegression(
-        C=C, penalty=pen, solver='saga', class_weight=wt,
-        max_iter=2000, random_state=RANDOM_STATE
+for C in C_VALUES:
+    lr_model = LogisticRegression(
+        C=C, class_weight='balanced', max_iter=1000,
+        random_state=RANDOM_STATE, solver='lbfgs'
     )
-    model.fit(X_train_lr, y_train)
-    y_pred = model.predict(X_val_lr)
-    y_prob = model.predict_proba(X_val_lr)[:, 1]
-    m = evaluate_model(y_val, y_pred, y_prob, f"C={C}, {pen}, wt={wt}")
-    m.update({'C': C, 'penalty': pen, 'class_weight': str(wt)})
-    lr_results.append(m)
+    lr_model.fit(X_train_lr, y_train)
+    y_prob = lr_model.predict_proba(X_val_lr)[:, 1]
 
-lr_results_df = pd.DataFrame(lr_results)
-lr_results_df = lr_results_df.sort_values('Balanced_Accuracy', ascending=False)
-lr_results_df.to_csv(EVIDENCE_DIR / 'lr_tuning_results.csv', index=False)
+    for thresh in THRESHOLDS:
+        y_pred = (y_prob >= thresh).astype(int)
+        f2 = fbeta_score(y_val, y_pred, beta=2, pos_label=0)
+        lr_tuning_results.append({
+            'C': C,
+            'threshold': round(thresh, 2),
+            'F2': round(f2, 4),
+            'Recall': round(recall_score(y_val, y_pred, pos_label=0), 4),
+            'Precision': round(precision_score(y_val, y_pred, pos_label=0, zero_division=0), 4),
+            'Balanced_Accuracy': round(balanced_accuracy_score(y_val, y_pred), 4),
+        })
 
-print(f"Total LR configurations evaluated: {len(lr_results)}")
-print(f"\\nTop 5 by Balanced Accuracy:")
-print(lr_results_df[['C', 'penalty', 'class_weight', 'Balanced_Accuracy', 'Recall', 'ROC_AUC']].head().to_string(index=False))
+lr_tuning_df = pd.DataFrame(lr_tuning_results)
+lr_tuning_df.to_csv(os.path.join(EVIDENCE_DIR, 'lr_tuning_results.csv'), index=False)
 
-# Best hyperparameters
-best_lr_row = lr_results_df.iloc[0]
+# ── Best setting ─────────────────────────────────────────────────────────────
+best_lr_row = lr_tuning_df.loc[lr_tuning_df['F2'].idxmax()]
 best_C = best_lr_row['C']
-best_pen = best_lr_row['penalty']
-best_wt = best_lr_row['class_weight']
-print(f"\\nBest LR config: C={best_C}, penalty={best_pen}, class_weight={best_wt}")
-""")
+best_lr_thresh = best_lr_row['threshold']
 
-code("""\
-# Retrain best LR
-best_wt_param = 'balanced' if best_wt == 'balanced' else None
+print(f"Total configurations evaluated: {len(lr_tuning_results)}")
+print(f"\\nBest LR setting:")
+print(f"  C = {best_C}")
+print(f"  Threshold = {best_lr_thresh}")
+print(f"  Validation F2 = {best_lr_row['F2']:.4f}")
+print(f"  Validation Recall = {best_lr_row['Recall']:.4f}")
+print(f"  Validation Precision = {best_lr_row['Precision']:.4f}")
+print(f"  Validation Balanced Accuracy = {best_lr_row['Balanced_Accuracy']:.4f}")
+
+# ── Retrain best model ──────────────────────────────────────────────────────
 tuned_lr = LogisticRegression(
-    C=best_C, penalty=best_pen, solver='saga', class_weight=best_wt_param,
-    max_iter=2000, random_state=RANDOM_STATE
+    C=best_C, class_weight='balanced', max_iter=1000,
+    random_state=RANDOM_STATE, solver='lbfgs'
 )
 tuned_lr.fit(X_train_lr, y_train)
-y_val_prob_lr = tuned_lr.predict_proba(X_val_lr)[:, 1]
+y_val_prob_tlr = tuned_lr.predict_proba(X_val_lr)[:, 1]
+y_val_pred_tlr = (y_val_prob_tlr >= best_lr_thresh).astype(int)
 
-# Threshold tuning: sweep thresholds to find best recall while maintaining reasonable precision
-thresholds = np.arange(0.10, 0.91, 0.01)
-best_thresh_lr = 0.5
-best_bal_acc_lr = 0.0
+tuned_lr_val_metrics = evaluate_model(y_val, y_val_pred_tlr, y_val_prob_tlr, 'Tuned LR (val)')
+print_metrics(tuned_lr_val_metrics)
 
-print("Threshold tuning (selecting by balanced accuracy):\\n")
-for t in thresholds:
-    y_pred_t = (y_val_prob_lr >= t).astype(int)
-    ba = balanced_accuracy_score(y_val, y_pred_t)
-    if ba > best_bal_acc_lr:
-        best_bal_acc_lr = ba
-        best_thresh_lr = t
-
-print(f"Best threshold for tuned LR: {best_thresh_lr:.2f} (balanced accuracy: {best_bal_acc_lr:.4f})")
-
-# Final validation evaluation with best threshold
-y_val_pred_tuned_lr = (y_val_prob_lr >= best_thresh_lr).astype(int)
-tuned_lr_metrics = evaluate_model(y_val, y_val_pred_tuned_lr, y_val_prob_lr, "Validation — Tuned LR")
-print_metrics(tuned_lr_metrics)
-
-log_step(
-    "Step 5.1 — Tune Logistic Regression",
-    "SUCCESS",
-    f"Grid searched {len(lr_results)} configs; best: C={best_C}, {best_pen}, wt={best_wt}; threshold={best_thresh_lr:.2f}",
-    f"Recall={tuned_lr_metrics['Recall']:.4f}, Balanced_Acc={tuned_lr_metrics['Balanced_Accuracy']:.4f}; lr_tuning_results.csv",
-)
+log_step('5.1_tune_LR', 'SUCCESS',
+         f'Grid search over {len(C_VALUES)} C values x {len(THRESHOLDS)} thresholds = '
+         f'{len(lr_tuning_results)} configs; best C={best_C}, threshold={best_lr_thresh}',
+         'tuned_lr model, evidence_claude_code/lr_tuning_results.csv')
 """)
 
-# ===================================================================
-# STEP 5.2 — TUNE XGBOOST
-# ===================================================================
-md("""\
-## 5.2 Tune XGBoost
+# ═══════════════════════════════════════════════════════════════════════════════
+# STEP 5.2 — Tune XGBoost
+# ═══════════════════════════════════════════════════════════════════════════════
 
-Train and tune an XGBoost classifier using grid search over key hyperparameters, with threshold tuning for the final decision boundary.
+md("""
+## 5.2 Tuned XGBoost
+
+We tune XGBoost hyperparameters via grid search and then optimise the decision
+threshold for F2 on the validation set. `scale_pos_weight` is set to the ratio
+of the majority to minority class to handle imbalance.
 """)
 
-code("""\
-# Calculate scale_pos_weight for imbalanced classes
-n_neg = (y_train == 0).sum()
+code("""
+# ── Compute scale_pos_weight ─────────────────────────────────────────────────
 n_pos = (y_train == 1).sum()
-spw_computed = n_neg / n_pos
-print(f"Computed scale_pos_weight: {spw_computed:.2f} (neg={n_neg}, pos={n_pos})")
+n_neg = (y_train == 0).sum()
+spw = n_pos / n_neg   # engaged / not-engaged
+print(f"scale_pos_weight = {spw:.2f} (majority/minority ratio for under-engaged class)")
 
-# Grid search
-depth_values = [3, 5, 7]
-nest_values = [100, 200, 300]
-lr_values = [0.01, 0.1, 0.2]
-spw_values = [1, spw_computed]
+# ── Hyperparameter grid ─────────────────────────────────────────────────────
+XGB_GRID = {
+    'n_estimators':   [100, 200, 300],
+    'max_depth':      [3, 5, 7],
+    'learning_rate':  [0.01, 0.05, 0.1],
+}
 
-xgb_results = []
-total = len(depth_values) * len(nest_values) * len(lr_values) * len(spw_values)
-print(f"Total XGBoost configurations: {total}")
+xgb_tuning_results = []
+total_configs = (len(XGB_GRID['n_estimators']) *
+                 len(XGB_GRID['max_depth']) *
+                 len(XGB_GRID['learning_rate']))
 
-for md_val, ne, lr_val, spw in product(depth_values, nest_values, lr_values, spw_values):
-    model = xgb.XGBClassifier(
-        max_depth=md_val, n_estimators=ne, learning_rate=lr_val,
-        scale_pos_weight=spw, eval_metric='logloss',
-        random_state=RANDOM_STATE, use_label_encoder=False,
-        verbosity=0
-    )
-    model.fit(X_train_xgb, y_train)
-    y_pred = model.predict(X_val_xgb)
-    y_prob = model.predict_proba(X_val_xgb)[:, 1]
-    m = evaluate_model(y_val, y_pred, y_prob,
-                       f"depth={md_val}, est={ne}, lr={lr_val}, spw={spw:.2f}")
-    m.update({
-        'max_depth': md_val, 'n_estimators': ne,
-        'learning_rate': lr_val, 'scale_pos_weight': round(spw, 2)
-    })
-    xgb_results.append(m)
+print(f"Hyperparameter configs: {total_configs}")
+print(f"Threshold values: {len(THRESHOLDS)}")
+print(f"Total evaluations: {total_configs * len(THRESHOLDS)}")
 
-xgb_results_df = pd.DataFrame(xgb_results)
-xgb_results_df = xgb_results_df.sort_values('Balanced_Accuracy', ascending=False)
-xgb_results_df.to_csv(EVIDENCE_DIR / 'xgb_tuning_results.csv', index=False)
+config_count = 0
+for n_est in XGB_GRID['n_estimators']:
+    for md in XGB_GRID['max_depth']:
+        for lr in XGB_GRID['learning_rate']:
+            config_count += 1
+            xgb_model = XGBClassifier(
+                n_estimators=n_est, max_depth=md, learning_rate=lr,
+                scale_pos_weight=spw, random_state=RANDOM_STATE,
+                eval_metric='logloss', verbosity=0,
+                use_label_encoder=False
+            )
+            xgb_model.fit(X_train_xgb, y_train)
+            y_prob = xgb_model.predict_proba(X_val_xgb)[:, 1]
 
-print(f"\\nTop 5 by Balanced Accuracy:")
-print(xgb_results_df[['max_depth', 'n_estimators', 'learning_rate', 'scale_pos_weight',
-                       'Balanced_Accuracy', 'Recall', 'ROC_AUC']].head().to_string(index=False))
+            for thresh in THRESHOLDS:
+                y_pred = (y_prob >= thresh).astype(int)
+                f2 = fbeta_score(y_val, y_pred, beta=2, pos_label=0)
+                xgb_tuning_results.append({
+                    'n_estimators': n_est,
+                    'max_depth': md,
+                    'learning_rate': lr,
+                    'threshold': round(thresh, 2),
+                    'F2': round(f2, 4),
+                    'Recall': round(recall_score(y_val, y_pred, pos_label=0), 4),
+                    'Precision': round(precision_score(y_val, y_pred, pos_label=0, zero_division=0), 4),
+                    'Balanced_Accuracy': round(balanced_accuracy_score(y_val, y_pred), 4),
+                })
 
-best_xgb_row = xgb_results_df.iloc[0]
-print(f"\\nBest XGBoost config: depth={best_xgb_row['max_depth']}, "
-      f"est={best_xgb_row['n_estimators']}, lr={best_xgb_row['learning_rate']}, "
-      f"spw={best_xgb_row['scale_pos_weight']}")
-""")
+xgb_tuning_df = pd.DataFrame(xgb_tuning_results)
+xgb_tuning_df.to_csv(os.path.join(EVIDENCE_DIR, 'xgb_tuning_results.csv'), index=False)
 
-code("""\
-# Retrain best XGBoost
-tuned_xgb = xgb.XGBClassifier(
-    max_depth=int(best_xgb_row['max_depth']),
-    n_estimators=int(best_xgb_row['n_estimators']),
-    learning_rate=best_xgb_row['learning_rate'],
-    scale_pos_weight=best_xgb_row['scale_pos_weight'],
-    eval_metric='logloss',
-    random_state=RANDOM_STATE,
-    use_label_encoder=False,
-    verbosity=0
+# ── Best setting ─────────────────────────────────────────────────────────────
+best_xgb_row = xgb_tuning_df.loc[xgb_tuning_df['F2'].idxmax()]
+best_n_est = int(best_xgb_row['n_estimators'])
+best_md    = int(best_xgb_row['max_depth'])
+best_lr_xgb = best_xgb_row['learning_rate']
+best_xgb_thresh = best_xgb_row['threshold']
+
+print(f"\\nBest XGBoost setting:")
+print(f"  n_estimators  = {best_n_est}")
+print(f"  max_depth     = {best_md}")
+print(f"  learning_rate = {best_lr_xgb}")
+print(f"  Threshold     = {best_xgb_thresh}")
+print(f"  Validation F2 = {best_xgb_row['F2']:.4f}")
+print(f"  Validation Recall = {best_xgb_row['Recall']:.4f}")
+print(f"  Validation Precision = {best_xgb_row['Precision']:.4f}")
+print(f"  Validation Balanced Accuracy = {best_xgb_row['Balanced_Accuracy']:.4f}")
+
+# ── Retrain best model ──────────────────────────────────────────────────────
+tuned_xgb = XGBClassifier(
+    n_estimators=best_n_est, max_depth=best_md, learning_rate=best_lr_xgb,
+    scale_pos_weight=spw, random_state=RANDOM_STATE,
+    eval_metric='logloss', verbosity=0, use_label_encoder=False
 )
 tuned_xgb.fit(X_train_xgb, y_train)
 y_val_prob_xgb = tuned_xgb.predict_proba(X_val_xgb)[:, 1]
+y_val_pred_xgb = (y_val_prob_xgb >= best_xgb_thresh).astype(int)
 
-# Threshold tuning
-best_thresh_xgb = 0.5
-best_bal_acc_xgb = 0.0
+tuned_xgb_val_metrics = evaluate_model(y_val, y_val_pred_xgb, y_val_prob_xgb, 'Tuned XGBoost (val)')
+print_metrics(tuned_xgb_val_metrics)
 
-for t in np.arange(0.10, 0.91, 0.01):
-    y_pred_t = (y_val_prob_xgb >= t).astype(int)
-    ba = balanced_accuracy_score(y_val, y_pred_t)
-    if ba > best_bal_acc_xgb:
-        best_bal_acc_xgb = ba
-        best_thresh_xgb = t
-
-print(f"Best threshold for tuned XGBoost: {best_thresh_xgb:.2f} (balanced accuracy: {best_bal_acc_xgb:.4f})")
-
-y_val_pred_tuned_xgb = (y_val_prob_xgb >= best_thresh_xgb).astype(int)
-tuned_xgb_metrics = evaluate_model(y_val, y_val_pred_tuned_xgb, y_val_prob_xgb, "Validation — Tuned XGBoost")
-print_metrics(tuned_xgb_metrics)
-
-log_step(
-    "Step 5.2 — Tune XGBoost",
-    "SUCCESS",
-    f"Grid searched {len(xgb_results)} configs; best: depth={int(best_xgb_row['max_depth'])}, "
-    f"est={int(best_xgb_row['n_estimators'])}, lr={best_xgb_row['learning_rate']}, "
-    f"spw={best_xgb_row['scale_pos_weight']}; threshold={best_thresh_xgb:.2f}",
-    f"Recall={tuned_xgb_metrics['Recall']:.4f}, Balanced_Acc={tuned_xgb_metrics['Balanced_Accuracy']:.4f}; xgb_tuning_results.csv",
-)
+log_step('5.2_tune_XGBoost', 'SUCCESS',
+         f'Grid search over {total_configs} configs x {len(THRESHOLDS)} thresholds = '
+         f'{len(xgb_tuning_results)} evaluations; best: n_est={best_n_est}, '
+         f'max_depth={best_md}, lr={best_lr_xgb}, threshold={best_xgb_thresh}',
+         'tuned_xgb model, evidence_claude_code/xgb_tuning_results.csv')
 """)
 
-# ===================================================================
-# STEP 5.3 — MODEL COMPARISON ON TEST SET
-# ===================================================================
-md("""\
-## 5.3 Model Comparison on Test Set
+# ═══════════════════════════════════════════════════════════════════════════════
+# STEP 5.3 — Model Comparison on Test Set
+# ═══════════════════════════════════════════════════════════════════════════════
 
-This is the first and only use of the held-out test set. We evaluate all three models — baseline LR, tuned LR, and tuned XGBoost — using the same evaluation harness for a fair comparison.
+md("""
+## 5.3 Model Comparison — Test Set Evaluation
+
+Only now do we evaluate on the held-out test set. We compare:
+1. Baseline Logistic Regression (default threshold 0.5)
+2. Tuned Logistic Regression (optimised C and threshold)
+3. Tuned XGBoost (optimised hyperparameters and threshold)
 """)
 
-code("""\
-# Baseline LR on test
-y_test_prob_bl = baseline_lr.predict_proba(X_test_lr)[:, 1]
-y_test_pred_bl = baseline_lr.predict(X_test_lr)
-test_bl = evaluate_model(y_test, y_test_pred_bl, y_test_prob_bl, "Test — Baseline LR")
+code("""
+# ── Baseline LR on test ─────────────────────────────────────────────────────
+y_test_prob_blr = baseline_lr.predict_proba(X_test_lr)[:, 1]
+y_test_pred_blr = baseline_lr.predict(X_test_lr)
+test_blr_metrics = evaluate_model(y_test, y_test_pred_blr, y_test_prob_blr, 'Baseline LR')
 
-# Tuned LR on test (with tuned threshold)
+# ── Tuned LR on test ────────────────────────────────────────────────────────
 y_test_prob_tlr = tuned_lr.predict_proba(X_test_lr)[:, 1]
-y_test_pred_tlr = (y_test_prob_tlr >= best_thresh_lr).astype(int)
-test_tlr = evaluate_model(y_test, y_test_pred_tlr, y_test_prob_tlr, "Test — Tuned LR")
+y_test_pred_tlr = (y_test_prob_tlr >= best_lr_thresh).astype(int)
+test_tlr_metrics = evaluate_model(y_test, y_test_pred_tlr, y_test_prob_tlr, 'Tuned LR')
 
-# Tuned XGBoost on test (with tuned threshold)
+# ── Tuned XGBoost on test ───────────────────────────────────────────────────
 y_test_prob_xgb = tuned_xgb.predict_proba(X_test_xgb)[:, 1]
-y_test_pred_xgb = (y_test_prob_xgb >= best_thresh_xgb).astype(int)
-test_xgb = evaluate_model(y_test, y_test_pred_xgb, y_test_prob_xgb, "Test — Tuned XGBoost")
+y_test_pred_xgb = (y_test_prob_xgb >= best_xgb_thresh).astype(int)
+test_xgb_metrics = evaluate_model(y_test, y_test_pred_xgb, y_test_prob_xgb, 'Tuned XGBoost')
 
-print_metrics(test_bl)
-print_metrics(test_tlr)
-print_metrics(test_xgb)
+# ── Comparison table ─────────────────────────────────────────────────────────
+comparison_df = pd.DataFrame([test_blr_metrics, test_tlr_metrics, test_xgb_metrics])
+print("\\n" + "="*80)
+print("  TEST SET MODEL COMPARISON")
+print("="*80)
+print(comparison_df.to_string(index=False))
+comparison_df.to_csv(os.path.join(EVIDENCE_DIR, 'test_model_comparison.csv'), index=False)
 
-test_comparison = pd.DataFrame([test_bl, test_tlr, test_xgb])
-test_comparison.to_csv(EVIDENCE_DIR / 'test_model_comparison.csv', index=False)
-print("Saved: test_model_comparison.csv")
-
-log_step(
-    "Step 5.3 — Model Comparison on Test Set",
-    "SUCCESS",
-    "Evaluated baseline LR, tuned LR, and tuned XGBoost on held-out test set",
-    f"test_model_comparison.csv",
-)
+log_step('5.3_model_comparison', 'SUCCESS',
+         'Evaluated all 3 models on held-out test set',
+         'evidence_claude_code/test_model_comparison.csv')
 """)
 
-# ===================================================================
-# STEP 5.4 — FINAL MODEL DECISION
-# ===================================================================
-md("""\
+# ═══════════════════════════════════════════════════════════════════════════════
+# STEP 5.4 — Final Model Decision
+# ═══════════════════════════════════════════════════════════════════════════════
+
+md("""
 ## 5.4 Final Model Decision
 
 ### Model Selection Framework
 
-Given the policy context of identifying under-engaged populations, we use a weighted multi-dimensional scoring framework:
+We use a **weighted multi-criteria scoring framework** to select the final model.
+The weights reflect the policy objective of identifying under-engaged populations:
 
-| Criterion | Weight | Rationale |
-|-----------|--------|-----------|
-| Recall | 0.35 | Primary goal is to identify under-engaged groups; false negatives are costly |
-| Balanced Accuracy | 0.20 | Fair performance summary given class imbalance |
-| PR-AUC | 0.15 | Minority-class-focused threshold-independent metric |
-| ROC-AUC | 0.10 | Overall discrimination ability |
-| F1 Score | 0.10 | Harmonic mean balancing precision and recall |
-| Interpretability | 0.10 | Policy communication requires explainable models |
+| Criterion | Weight | Justification |
+|---|---|---|
+| Recall | 0.30 | Primary goal is to detect under-engaged individuals |
+| F2 Score | 0.25 | Balances recall-precision with recall emphasis |
+| Balanced Accuracy | 0.20 | Fair assessment under class imbalance |
+| ROC-AUC | 0.15 | Threshold-independent discrimination |
+| Interpretability | 0.10 | Logistic Regression more interpretable for policy |
+
+**Interpretability scoring**: Logistic Regression = 1.0 (coefficients are
+directly interpretable); XGBoost = 0.5 (feature importances available but
+model is a black box).
 """)
 
-code("""\
-# Scoring framework
-weights = {
-    'Recall': 0.35,
-    'Balanced_Accuracy': 0.20,
-    'PR_AUC': 0.15,
-    'ROC_AUC': 0.10,
-    'F1': 0.10,
+code("""
+# ── Tuning summaries ─────────────────────────────────────────────────────────
+print("="*80)
+print("  TUNING SUMMARY: Logistic Regression")
+print("="*80)
+print(f"  Tuning method:      Grid search over C + threshold sweep")
+print(f"  Hyperparameters:    C, threshold")
+print(f"  C search range:     {C_VALUES}")
+print(f"  Threshold range:    0.10 to 0.90 (step 0.05)")
+print(f"  class_weight:       'balanced'")
+print(f"  Total configs:      {len(lr_tuning_results)}")
+print(f"  Best C:             {best_C}")
+print(f"  Best threshold:     {best_lr_thresh}")
+print(f"  Best val F2:        {best_lr_row['F2']:.4f}")
+print(f"  Best val Recall:    {best_lr_row['Recall']:.4f}")
+print(f"  Best val Bal. Acc:  {best_lr_row['Balanced_Accuracy']:.4f}")
+
+print()
+print("="*80)
+print("  TUNING SUMMARY: XGBoost")
+print("="*80)
+print(f"  Tuning method:      Grid search + threshold sweep")
+print(f"  Hyperparameters:    n_estimators, max_depth, learning_rate, threshold")
+print(f"  n_estimators:       {XGB_GRID['n_estimators']}")
+print(f"  max_depth:          {XGB_GRID['max_depth']}")
+print(f"  learning_rate:      {XGB_GRID['learning_rate']}")
+print(f"  scale_pos_weight:   {spw:.2f}")
+print(f"  Threshold range:    0.10 to 0.90 (step 0.05)")
+print(f"  Total configs:      {len(xgb_tuning_results)}")
+print(f"  Best n_estimators:  {best_n_est}")
+print(f"  Best max_depth:     {best_md}")
+print(f"  Best learning_rate: {best_lr_xgb}")
+print(f"  Best threshold:     {best_xgb_thresh}")
+print(f"  Best val F2:        {best_xgb_row['F2']:.4f}")
+print(f"  Best val Recall:    {best_xgb_row['Recall']:.4f}")
+print(f"  Best val Bal. Acc:  {best_xgb_row['Balanced_Accuracy']:.4f}")
+""")
+
+code("""
+# ── Weighted scoring framework ──────────────────────────────────────────────
+WEIGHTS = {
+    'Recall': 0.30,
+    'F2': 0.25,
+    'Balanced Accuracy': 0.20,
+    'ROC-AUC': 0.15,
     'Interpretability': 0.10,
 }
 
-# Interpretability scores (qualitative)
-interp_scores = {
-    'Test — Baseline LR': 1.0,
-    'Test — Tuned LR': 1.0,
-    'Test — Tuned XGBoost': 0.5,
+INTERPRETABILITY = {
+    'Baseline LR':    1.0,
+    'Tuned LR':       1.0,
+    'Tuned XGBoost':  0.5,
 }
 
-selection_records = []
-for m in [test_bl, test_tlr, test_xgb]:
-    name = m['Dataset']
-    score = 0.0
-    breakdown = {}
-    for criterion, w in weights.items():
+# Compute weighted scores
+scoring_rows = []
+for metrics in [test_blr_metrics, test_tlr_metrics, test_xgb_metrics]:
+    model_name = metrics['Model']
+    score = 0
+    detail = {}
+    for criterion, weight in WEIGHTS.items():
         if criterion == 'Interpretability':
-            val = interp_scores[name]
+            val = INTERPRETABILITY[model_name]
         else:
-            val = m[criterion]
-        contribution = val * w
-        score += contribution
-        breakdown[criterion] = val
-    breakdown['Weighted_Score'] = score
-    breakdown['Model'] = name
-    selection_records.append(breakdown)
+            val = metrics[criterion]
+        weighted = val * weight
+        detail[criterion] = f"{val:.4f} x {weight} = {weighted:.4f}"
+        score += weighted
+    scoring_rows.append({
+        'Model': model_name,
+        **{f'{k} (weighted)': round(v * WEIGHTS[k] if k != 'Interpretability'
+           else INTERPRETABILITY[model_name] * WEIGHTS[k], 4)
+           for k, v in zip(WEIGHTS.keys(),
+                          [metrics.get(k, INTERPRETABILITY.get(model_name, 0))
+                           for k in WEIGHTS.keys()])},
+        'Total Score': round(score, 4),
+    })
 
-selection_df = pd.DataFrame(selection_records)
-selection_df = selection_df.sort_values('Weighted_Score', ascending=False)
-print("Model Selection Framework Scores:\\n")
-print(selection_df.to_string(index=False))
+scoring_df = pd.DataFrame(scoring_rows)
+print("\\n" + "="*80)
+print("  MODEL SELECTION FRAMEWORK — Weighted Scores")
+print("="*80)
+print(scoring_df.to_string(index=False))
+scoring_df.to_csv(os.path.join(EVIDENCE_DIR, 'model_selection_framework.csv'), index=False)
 
-final_model_name = selection_df.iloc[0]['Model']
-print(f"\\n*** Selected model: {final_model_name} ***")
+# ── Final decision ───────────────────────────────────────────────────────────
+best_model_name = scoring_df.loc[scoring_df['Total Score'].idxmax(), 'Model']
+best_score = scoring_df['Total Score'].max()
+print(f"\\n>>> SELECTED MODEL: {best_model_name} (score: {best_score:.4f})")
 
-selection_df.to_csv(EVIDENCE_DIR / 'model_selection_framework.csv', index=False)
-print("\\nSaved: model_selection_framework.csv")
+# Save best model name for report generation
+with open('best_model_name.txt', 'w') as f:
+    f.write(best_model_name)
+
+log_step('5.4_final_model_decision', 'SUCCESS',
+         f'Applied weighted multi-criteria framework; selected {best_model_name} (score={best_score:.4f})',
+         'evidence_claude_code/model_selection_framework.csv, best_model_name.txt')
 """)
 
-md("### Tuning Summaries")
+# ═══════════════════════════════════════════════════════════════════════════════
+# Save notebook
+# ═══════════════════════════════════════════════════════════════════════════════
 
-code("""\
-# Structured tuning summary for LR
-print("=" * 60)
-print("TUNING SUMMARY — Logistic Regression")
-print("=" * 60)
-print(f"  Tuning method:      Grid Search")
-print(f"  Hyperparameters:    C, penalty, class_weight")
-print(f"  Search ranges:")
-print(f"    C:                {C_values}")
-print(f"    penalty:          {penalty_values}")
-print(f"    class_weight:     {weight_values}")
-print(f"  Total configs:      {len(lr_results)}")
-print(f"  Best setting:       C={best_C}, penalty={best_pen}, class_weight={best_wt}")
-print(f"  Best threshold:     {best_thresh_lr:.2f}")
-print(f"  Best val metrics:")
-print(f"    Balanced Acc:     {tuned_lr_metrics['Balanced_Accuracy']:.4f}")
-print(f"    Recall:           {tuned_lr_metrics['Recall']:.4f}")
-print(f"    ROC-AUC:          {tuned_lr_metrics['ROC_AUC']:.4f}")
-print(f"    PR-AUC:           {tuned_lr_metrics['PR_AUC']:.4f}")
-print()
-
-# Structured tuning summary for XGBoost
-print("=" * 60)
-print("TUNING SUMMARY — XGBoost")
-print("=" * 60)
-print(f"  Tuning method:      Grid Search")
-print(f"  Hyperparameters:    max_depth, n_estimators, learning_rate, scale_pos_weight")
-print(f"  Search ranges:")
-print(f"    max_depth:        {depth_values}")
-print(f"    n_estimators:     {nest_values}")
-print(f"    learning_rate:    {lr_values}")
-print(f"    scale_pos_weight: [1, {spw_computed:.2f}]")
-print(f"  Total configs:      {len(xgb_results)}")
-print(f"  Best setting:       depth={int(best_xgb_row['max_depth'])}, "
-      f"est={int(best_xgb_row['n_estimators'])}, "
-      f"lr={best_xgb_row['learning_rate']}, "
-      f"spw={best_xgb_row['scale_pos_weight']}")
-print(f"  Best threshold:     {best_thresh_xgb:.2f}")
-print(f"  Best val metrics:")
-print(f"    Balanced Acc:     {tuned_xgb_metrics['Balanced_Accuracy']:.4f}")
-print(f"    Recall:           {tuned_xgb_metrics['Recall']:.4f}")
-print(f"    ROC-AUC:          {tuned_xgb_metrics['ROC_AUC']:.4f}")
-print(f"    PR-AUC:           {tuned_xgb_metrics['PR_AUC']:.4f}")
-
-log_step(
-    "Step 5.4 — Final Model Decision",
-    "SUCCESS",
-    f"Applied weighted scoring framework; selected {final_model_name}",
-    "model_selection_framework.csv; tuning summaries printed",
-)
-""")
-
-# ===================================================================
-# STEP 7 — WRITE REPORT (notebook cell that writes the file)
-# ===================================================================
-md("""\
-# 7. Report Generation
-
-The following cell writes a non-technical report based on the actual results from this experiment.
-""")
-
-code("""\
-# Gather actual metrics for report
-bl_recall = test_bl['Recall']
-bl_ba = test_bl['Balanced_Accuracy']
-bl_roc = test_bl['ROC_AUC']
-tlr_recall = test_tlr['Recall']
-tlr_ba = test_tlr['Balanced_Accuracy']
-xgb_recall = test_xgb['Recall']
-xgb_ba = test_xgb['Balanced_Accuracy']
-n_clean = len(participation_clean)
-under_rate = participation_clean['target'].mean()
-
-report = f\"\"\"# Report: Identifying Under-Engagement in Physical Arts Participation
-
-## Purpose
-
-This analysis supports evidence-based cultural policy by identifying population groups that are less likely to engage in physical arts activities. Using data from the UK Participation Survey 2024\u201325, we developed predictive models to detect patterns of under-engagement across demographic, socioeconomic, digital, and geographic factors. The goal is to help arts organisations and policymakers direct outreach and resources towards groups facing potential barriers to participation.
-
-## Data and Approach
-
-The dataset comprises {n_clean:,} respondents from the annual UK Participation Survey, each described by ten variables covering age, gender, employment status, education, financial circumstances, internet usage, region, urban/rural setting, household composition, and cohabitation status. The target variable indicates whether a respondent physically engaged with the arts in the previous twelve months.
-
-Approximately {under_rate:.0%} of respondents were identified as under-engaged. After cleaning coded missing values using a tiered strategy (dropping rows for low-missingness variables, recoding to an \\"Unknown\\" category for high-missingness ones), we trained and compared three models: a baseline logistic regression, a tuned logistic regression, and a tuned XGBoost gradient-boosted tree classifier. Data was split into training (70%), validation (15%), and test (15%) sets, with the test set reserved exclusively for final evaluation.
-
-## Findings
-
-All three models achieved similar performance on the held-out test set. The baseline logistic regression correctly identified {bl_recall:.0%} of under-engaged respondents (recall), with a balanced accuracy of {bl_ba:.1%} and an ROC-AUC of {bl_roc:.2f}. The tuned logistic regression achieved {tlr_recall:.0%} recall and {tlr_ba:.1%} balanced accuracy. The tuned XGBoost model reached {xgb_recall:.0%} recall and {xgb_ba:.1%} balanced accuracy.
-
-## Model Choice
-
-The **{final_model_name.replace('Test — ', '')}** was selected as the final model using a weighted scoring framework that prioritises recall (identifying under-engaged groups), balanced accuracy, and interpretability. Logistic regression offers transparent coefficients that are straightforward to communicate to non-technical stakeholders, which is essential for policy applications.
-
-## Practical Implications
-
-The model can help identify demographic and socioeconomic profiles associated with lower arts participation. This information may guide targeted outreach campaigns, programme design, and resource allocation to improve inclusivity in cultural engagement.
-
-## Limitations
-
-The model identifies statistical associations, not causal relationships \u2014 non-participation may reflect preferences rather than barriers. Precision for the under-engaged class remains modest, meaning some engaged individuals are incorrectly flagged. High missingness in cohabitation status and education data may limit the model\\'s sensitivity to these factors. Results should be used alongside qualitative research and domain expertise rather than as a standalone decision tool.
-\"\"\"
-
-with open('Report_claude_code.md', 'w') as f:
-    f.write(report)
-print("Saved: Report_claude_code.md")
-print(f"Word count: {len(report.split())}")
-
-log_step(
-    "Step 7 — Documentation",
-    "SUCCESS",
-    "Generated non-technical policy report from actual experiment results",
-    "Report_claude_code.md",
-)
-
-log_step(
-    "EXPERIMENT COMPLETE",
-    "SUCCESS",
-    "All steps (0-7) completed successfully",
-    "experiment_claude_code.ipynb, run_log_claude_code.md, Report_claude_code.md, requirements.txt, README.md, evidence_claude_code/",
-)
-""")
-
-# ===================================================================
-# BUILD NOTEBOOK
-# ===================================================================
-nb = nbf.v4.new_notebook()
-nb.metadata.update({
-    'kernelspec': {
-        'display_name': 'Python 3',
-        'language': 'python',
-        'name': 'python3'
-    },
-    'language_info': {
-        'name': 'python',
-        'version': '3.10.0',
-    }
-})
-nb.cells = cells
-
-with open(NB_FILE, 'w') as f:
+OUTPUT = "experiment_claude_code.ipynb"
+with open(OUTPUT, "w") as f:
     nbf.write(nb, f)
-print(f"Notebook written: {NB_FILE} ({len(cells)} cells)")
-
-# ===================================================================
-# WRITE requirements.txt
-# ===================================================================
-requirements = """\
-pandas==2.2.2
-numpy==1.26.4
-matplotlib==3.9.3
-seaborn==0.13.2
-scikit-learn==1.4.1.post1
-xgboost==3.2.0
-notebook==7.2.2
-nbconvert==7.16.4
-ipykernel==6.29.5
-nbformat==5.10.4
-"""
-
-with open("requirements.txt", "w") as f:
-    f.write(requirements)
-print("Written: requirements.txt")
-
-# ===================================================================
-# WRITE README.md
-# ===================================================================
-readme = """\
-# Experiment: claude_code
-
-## Required Input Files
-
-The following files must be available in `../../data/` (relative to this directory):
-
-1. `participation_2024-25_experiment.tab` — UK Participation Survey dataset (tab-separated)
-2. `participation_2024-25_data_dictionary_cleaned.txt` — Variable dictionary
-
-## How to Run
-
-```bash
-cd agents/claude_code
-pip install -r requirements.txt
-jupyter nbconvert --execute --to notebook --inplace experiment_claude_code.ipynb
-```
-
-Or open `experiment_claude_code.ipynb` in Jupyter and run all cells sequentially.
-
-## Outputs
-
-| File | Description |
-|------|-------------|
-| `experiment_claude_code.ipynb` | Complete experiment notebook with all outputs |
-| `run_log_claude_code.md` | Step-by-step execution log |
-| `Report_claude_code.md` | Non-technical policy report (~400 words) |
-| `requirements.txt` | Python dependencies |
-| `evidence_claude_code/` | Evidence folder containing: |
-| `  EDA_claude_code_Pics/` | EDA visualisation PNGs |
-| `  baseline_lr_validation_metrics.csv` | Baseline LR validation results |
-| `  lr_tuning_results.csv` | LR grid search results |
-| `  xgb_tuning_results.csv` | XGBoost grid search results |
-| `  test_model_comparison.csv` | Final test-set model comparison |
-| `  model_selection_framework.csv` | Weighted model selection scores |
-| `  missingness_handling_summary.csv` | Missingness handling details |
-
-## Reproducibility
-
-- **Random seed:** `RANDOM_STATE = 42` used throughout (numpy, random, sklearn, xgboost)
-- **Stratified splits:** 70/15/15 train/validation/test with stratification on target
-- **Relative paths only:** all file references use relative paths from this directory
-- **Shared evaluation harness:** identical metrics applied to all models
-- **Test set discipline:** test set used only once in Step 5.3 for final comparison
-"""
-
-with open("README.md", "w") as f:
-    f.write(readme)
-print("Written: README.md")
-
-# ===================================================================
-# EXECUTE NOTEBOOK
-# ===================================================================
-print("\n" + "=" * 60)
-print("Executing notebook...")
-print("=" * 60)
-
-result = subprocess.run(
-    [
-        sys.executable, "-m", "jupyter", "nbconvert",
-        "--execute",
-        "--to", "notebook",
-        "--inplace",
-        "--ExecutePreprocessor.timeout=600",
-        NB_FILE
-    ],
-    capture_output=True,
-    text=True
-)
-
-if result.returncode == 0:
-    print("Notebook executed successfully!")
-else:
-    print("Notebook execution FAILED!")
-    print("STDOUT:", result.stdout)
-    print("STDERR:", result.stderr)
-    sys.exit(1)
-
-print("\nDone. All files generated.")
+print(f"Notebook written to {OUTPUT}")

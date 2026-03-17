@@ -1,80 +1,75 @@
 # Run Log — claude_code
+Generated: 2026-03-17 02:06:24
 
-### Step 0 — Setup
-- **Status:** SUCCESS
-- **Actions:** Imported libraries; set RANDOM_STATE=42; created evidence directories; read data dictionary
-- **Outputs:** run_log_claude_code.md, evidence_claude_code/
-- **Warnings/Errors:** None
+## Step: 0_setup
+- Completion Status: SUCCESS
+- Key Actions: Created notebook, evidence directory, run log
+- Key Outputs: experiment_claude_code.ipynb, evidence_claude_code/, run_log_claude_code.md
+- Warnings/Errors: None
 
-### Step 1.1 — Dataset Ingestion & Schema Checks
-- **Status:** SUCCESS
-- **Actions:** Loaded 34378 rows x 11 cols; verified all 11 required variables present; subset to required columns
-- **Outputs:** participation_raw DataFrame
-- **Warnings/Errors:** Duplicate rows: 8602; Extra columns dropped: []
+## Step: 1.1_dataset_ingestion
+- Completion Status: SUCCESS
+- Key Actions: Loaded 34378 rows x 16 cols; verified all 16 variables present
+- Key Outputs: participation_raw dataframe
+- Warnings/Errors: 88 duplicate rows found
 
-### Step 1.2 — Problem Definition
-- **Status:** SUCCESS
-- **Actions:** Defined binary classification task (under-engagement identification); documented target and feature variables; created variable dictionary table
-- **Outputs:** Markdown documentation in notebook
-- **Warnings/Errors:** None
+## Step: 2_EDA_prep
+- Completion Status: SUCCESS
+- Key Actions: Removed 40 rows with CARTS_NET in [-3,3]; created binary target
+- Key Outputs: participation_eda dataframe
+- Warnings/Errors: None
 
-### Step 2 — EDA
-- **Status:** SUCCESS
-- **Actions:** Removed 40 rows with CARTS_NET in [-3, 3]; created binary target; generated 4 visualisations
-- **Outputs:** participation_eda DataFrame; target_distribution.png, feature_distributions.png, feature_target_relationships.png, correlation_heatmap.png
-- **Warnings/Errors:** None
+## Step: 2_EDA
+- Completion Status: SUCCESS
+- Key Actions: Generated target distribution, feature distributions, engagement-rate plots, correlation heatmap
+- Key Outputs: EDA_claude_code_Pics/: target_distribution.png, feature_distributions.png, feature_target_relationships.png, correlation_heatmap.png
+- Warnings/Errors: None
 
-### Step 3 — Missingness Handling
-- **Status:** SUCCESS
-- **Actions:** Applied tiered missingness handling; Tier 1 (drop): ['AGEBAND', 'SEX', 'QWORK', 'FINHARD', 'CHILDHH']; Tier 2 (recode): ['EDUCAT3', 'CINTOFT', 'COHAB']
-- **Outputs:** participation_clean (31351 rows, 91.3% retention); missingness_handling_summary.csv
-- **Warnings/Errors:** None
+## Step: 3_missingness_handling
+- Completion Status: SUCCESS
+- Key Actions: Recoded CULTSATIS -3→6; dropped rows with non-informative codes; 5265 rows removed (15.3%)
+- Key Outputs: participation_clean dataframe, evidence_claude_code/missingness_handling_summary.csv
+- Warnings/Errors: None
 
-### Step 4.1 — Prepare Modelling Data
-- **Status:** SUCCESS
-- **Actions:** Defined X (10 features) and y; created LR and XGBoost preprocessors; stratified 70/15/15 split
-- **Outputs:** Train=21945, Val=4703, Test=4703; Encoded dims: LR=49, XGB=59
-- **Warnings/Errors:** None
+## Step: 4.1_prepare_modeling_data
+- Completion Status: SUCCESS
+- Key Actions: Defined X (15 features) and y; created LR and XGB preprocessors; stratified 70/15/15 split
+- Key Outputs: X_train, X_val, X_test, y_train, y_val, y_test; preprocessed matrices
+- Warnings/Errors: None
 
-### Step 4.3 — Baseline Logistic Regression
-- **Status:** SUCCESS
-- **Actions:** Trained baseline LR (C=1.0, L2, balanced); evaluated on validation set
-- **Outputs:** Recall=0.6704, Balanced_Acc=0.6926, ROC_AUC=0.7418; baseline_lr_validation_metrics.csv
-- **Warnings/Errors:** None
+## Step: 4.2_evaluation_harness
+- Completion Status: SUCCESS
+- Key Actions: Defined evaluate_model() with Precision, Recall, F1, F2, Balanced Accuracy, ROC-AUC, PR-AUC
+- Key Outputs: evaluate_model() function
+- Warnings/Errors: None
 
-### Step 5.1 — Tune Logistic Regression
-- **Status:** SUCCESS
-- **Actions:** Grid searched 24 configs; best: C=0.1, l2, wt=balanced; threshold=0.51
-- **Outputs:** Recall=0.6620, Balanced_Acc=0.6942; lr_tuning_results.csv
-- **Warnings/Errors:** None
+## Step: 4.3_baseline_LR
+- Completion Status: SUCCESS
+- Key Actions: Trained baseline LR (C=1.0, default threshold 0.5)
+- Key Outputs: baseline_lr model, evidence_claude_code/baseline_lr_validation_metrics.csv
+- Warnings/Errors: None
 
-### Step 5.2 — Tune XGBoost
-- **Status:** SUCCESS
-- **Actions:** Grid searched 54 configs; best: depth=3, est=100, lr=0.1, spw=12.16; threshold=0.50
-- **Outputs:** Recall=0.6704, Balanced_Acc=0.6926; xgb_tuning_results.csv
-- **Warnings/Errors:** None
+## Step: 5.1_tune_LR
+- Completion Status: SUCCESS
+- Key Actions: Grid search over 9 C values x 17 thresholds = 153 configs; best C=10.0, threshold=0.55
+- Key Outputs: tuned_lr model, evidence_claude_code/lr_tuning_results.csv
+- Warnings/Errors: None
 
-### Step 5.3 — Model Comparison on Test Set
-- **Status:** SUCCESS
-- **Actions:** Evaluated baseline LR, tuned LR, and tuned XGBoost on held-out test set
-- **Outputs:** test_model_comparison.csv
-- **Warnings/Errors:** None
+## Step: 5.2_tune_XGBoost
+- Completion Status: SUCCESS
+- Key Actions: Grid search over 27 configs x 17 thresholds = 459 evaluations; best: n_est=300, max_depth=7, lr=0.1, threshold=0.9
+- Key Outputs: tuned_xgb model, evidence_claude_code/xgb_tuning_results.csv
+- Warnings/Errors: None
 
-### Step 5.4 — Final Model Decision
-- **Status:** SUCCESS
-- **Actions:** Applied weighted scoring framework; selected Test — Baseline LR
-- **Outputs:** model_selection_framework.csv; tuning summaries printed
-- **Warnings/Errors:** None
+## Step: 5.3_model_comparison
+- Completion Status: SUCCESS
+- Key Actions: Evaluated all 3 models on held-out test set
+- Key Outputs: evidence_claude_code/test_model_comparison.csv
+- Warnings/Errors: None
 
-### Step 7 — Documentation
-- **Status:** SUCCESS
-- **Actions:** Generated non-technical policy report from actual experiment results
-- **Outputs:** Report_claude_code.md
-- **Warnings/Errors:** None
-
-### EXPERIMENT COMPLETE
-- **Status:** SUCCESS
-- **Actions:** All steps (0-7) completed successfully
-- **Outputs:** experiment_claude_code.ipynb, run_log_claude_code.md, Report_claude_code.md, requirements.txt, README.md, evidence_claude_code/
-- **Warnings/Errors:** None
+## Step: 5.4_final_model_decision
+- Completion Status: SUCCESS
+- Key Actions: Applied weighted multi-criteria framework; selected Tuned LR (score=0.7169)
+- Key Outputs: evidence_claude_code/model_selection_framework.csv, best_model_name.txt
+- Warnings/Errors: None
 

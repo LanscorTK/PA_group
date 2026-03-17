@@ -1,11 +1,16 @@
-Variable,Non-informative codes,Count,Rate,Tier
-AGEBAND,"[-3, 997]",606,1.765%,Tier 1 (drop rows)
-SEX,"[-5, -4, -3, 997]",638,1.858%,Tier 1 (drop rows)
-QWORK,"[-5, -4, -3, 997, 999]",1364,3.972%,Tier 1 (drop rows)
-EDUCAT3,"[-5, -4, -3, 997, 999]",8239,23.994%,Tier 2 (recode to 0)
-FINHARD,"[-5, -4, -3, 997]",1652,4.811%,Tier 1 (drop rows)
-CINTOFT,"[-5, -4, -3]",2029,5.909%,Tier 2 (recode to 0)
-gor,[],0,0.000%,-
-rur11cat,[],0,0.000%,-
-CHILDHH,"[-6, -5, -4, -3, 997]",69,0.201%,Tier 1 (drop rows)
-COHAB,"[-5, -4, -3, 997]",24434,71.157%,Tier 2 (recode to 0)
+Variable,Recode,Drop codes,Rows to drop,Drop rate (%),Rows recoded
+CHERVIS12_NET,None,None,0,0.0,0
+EDUCAT3,{-3: 0},"[-4, -5, 997, 999]",1111,3.24,7128
+NSSEC_3,{-3: 5},None,0,0.0,5101
+FINHARD,{-3: 6},"[-4, -5, 997]",1514,4.41,138
+WELLB1,None,"[-4, -5, 997]",1521,4.43,0
+CINTOFT,{-3: 6},"[-4, -5]",46,0.13,1983
+CSMARTD_Count,{-3: -1},None,0,0.0,2021
+WELLB4,None,"[-4, -5, 997]",1562,4.55,0
+TENHARM,{-3: 4},None,0,0.0,170
+LONELY,None,"[-4, -5, 997]",1262,3.68,0
+ETHNIC_NET,None,"[-3, 997, 999]",1083,3.15,0
+emdidc19,None,None,0,0.0,0
+CULTSATIS,{-3: 6},[999],451,1.31,24325
+SEX,None,"[-4, -5, 997]",638,1.86,0
+AGEBAND,None,"[-3, 997]",606,1.76,0

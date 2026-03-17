@@ -1,74 +1,74 @@
-# Experiment Run Log: antigravity
+# Run Log: antigravity
 
-### Step: 0. Setup
-- **Completion Status:** SUCCESS
-- **Key Actions:** Imported libraries, set random seed to 42, initialized experiment tracking structure.
-- **Key Outputs:** evidence_antigravity/, run_log_antigravity.md
-- **Warnings/Errors:** None
+## 0_setup
+- **Status**: Completed
+- **Key Actions**: Imported libraries, set random seed to 42, created tracking folders.
+- **Key Outputs**: evidence folder, run log file.
+- **Warnings/Errors**: None
 
-### Step: 1.1 Dataset ingestion and schema checks
-- **Completion Status:** SUCCESS
-- **Key Actions:** Loaded raw data and performed schema checks for required columns.
-- **Key Outputs:** participation_raw shape: (34378, 11)
-- **Warnings/Errors:** None
+## 1.1_dataset_ingestion_and_schema_checks
+- **Status**: Completed
+- **Key Actions**: Loaded raw data and verified presence of required variables.
+- **Key Outputs**: Raw data shape: (34378, 16)
+- **Warnings/Errors**: None
 
-### Step: 1.2 Problem Definition
-- **Completion Status:** SUCCESS
-- **Key Actions:** Defined prediction task and variables in markdown.
-- **Key Outputs:** Markdown cell with problem definition and variable dictionary table.
-- **Warnings/Errors:** None
+## 1.2_problem_defition
+- **Status**: Completed
+- **Key Actions**: Defined prediction task and variables in markdown.
+- **Key Outputs**: None
+- **Warnings/Errors**: None
 
-### Step: 2. EDA
-- **Completion Status:** SUCCESS
-- **Key Actions:** Filtered invalid target rows and generated EDA visualizations.
-- **Key Outputs:** evidence_antigravity/EDA_antigravity_Pics with .png figures
-- **Warnings/Errors:** None
+## 2_EDA
+- **Status**: Completed
+- **Key Actions**: Created binary target, dropped missing targets. Generated and saved EDA plots.
+- **Key Outputs**: EDA plots in EDA_antigravity_Pics folder.
+- **Warnings/Errors**: None
 
-### Step: 3. Missingness handling
-- **Completion Status:** SUCCESS
-- **Key Actions:** Replaced negative missing codes with the mode of valid values for each feature.
-- **Key Outputs:** participation_clean dataframe created.
-- **Warnings/Errors:** None
+## 3_missingness_handling
+- **Status**: Completed
+- **Key Actions**: Dropped rows with non-informative missing codes according to rules.
+- **Key Outputs**: Cleaned data shape: (24867, 16)
+- **Warnings/Errors**: None
 
-### Step: 4.1 Prepare Modeling Data
-- **Completion Status:** SUCCESS
-- **Key Actions:** Defined X and y, set up preprocessor, performed 70/15/15 stratified split.
-- **Key Outputs:** X_train, X_val, X_test splits
-- **Warnings/Errors:** None
+## 4.1_prepare_modeling_data
+- **Status**: Completed
+- **Key Actions**: Split data into train, val, test and built preprocessor.
+- **Key Outputs**: Train/Val/Test splits.
+- **Warnings/Errors**: None
 
-### Step: 4.2 Create evaluation harness
-- **Completion Status:** SUCCESS
-- **Key Actions:** Defined evaluation function incorporating classification report, PR-AUC, and confusion matrix.
-- **Key Outputs:** evaluate_model function
-- **Warnings/Errors:** None
+## 4.2_create_evaluation_harness
+- **Status**: Completed
+- **Key Actions**: Defined evaluation metrics focusing on F2 Score and PR-AUC.
+- **Key Outputs**: evaluate_model function.
+- **Warnings/Errors**: None
 
-### Step: 4.3 Baseline Model (LR)
-- **Completion Status:** SUCCESS
-- **Key Actions:** Trained baseline Logistic Regression model and evaluated on validation set.
-- **Key Outputs:** PR-AUC: 0.2093
-- **Warnings/Errors:** None
+## 4.3_baseline_model_LR
+- **Status**: Completed
+- **Key Actions**: Trained baseline Logistic Regression model.
+- **Key Outputs**: Baseline validation metrics.
+- **Warnings/Errors**: None
 
-### Step: 5.1 Improve LR
-- **Completion Status:** SUCCESS
-- **Key Actions:** Tuned LR C parameter and decision threshold over validation set.
-- **Key Outputs:** Best F1: 0.2766, PR-AUC: 0.2092
-- **Warnings/Errors:** None
+## 5.1_improve_LR
+- **Status**: Completed
+- **Key Actions**: Tuned LR and found best threshold on validation set.
+- **Key Outputs**: Tuned LR settings and validation metrics.
+- **Warnings/Errors**: None
 
-### Step: 5.2 Tune XGBoost
-- **Completion Status:** SUCCESS
-- **Key Actions:** Tuned XGB parameters and decision threshold over validation set.
-- **Key Outputs:** Best F1: 0.2780, PR-AUC: 0.2131
-- **Warnings/Errors:** None
+## 5.2_tune_XGBoost
+- **Status**: Completed
+- **Key Actions**: Tuned XGBoost and found best threshold on validation set.
+- **Key Outputs**: Tuned XGB settings and validation metrics.
+- **Warnings/Errors**: None
 
-### Step: 5.3 Model Comparison
-- **Completion Status:** SUCCESS
-- **Key Actions:** Evaluated Baseline LR, Tuned LR, and Tuned XGBoost on the unseen Test set.
-- **Key Outputs:** Comparison DataFrame Output generated.
-- **Warnings/Errors:** None
+## 5.3_model_comparison
+- **Status**: Completed
+- **Key Actions**: Evaluated all three models on the test set.
+- **Key Outputs**: Test set metrics.
+- **Warnings/Errors**: None
 
-### Step: 5.4 Final Model Decision
-- **Completion Status:** SUCCESS
-- **Key Actions:** Summarized tuning logs and stated final model selection criterion and decision.
-- **Key Outputs:** Tuning text summary output.
-- **Warnings/Errors:** None
+## 5.4_final_model_decision
+- **Status**: Completed
+- **Key Actions**: Compared test metrics and selected final model.
+- **Key Outputs**: Saved final_model.pkl to evidence.
+- **Warnings/Errors**: None
 
