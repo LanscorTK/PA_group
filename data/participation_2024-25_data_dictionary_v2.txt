@@ -1,0 +1,176 @@
+Data Dictionary: participation_2024-25_experiment_v2.tab
+=====================================================
+Source: UK Participation Survey 2024-25 (DCMS) — Safeguard dataset
+Rows: 34,378 | Columns: 16 (15 features + 1 target)
+
+Coded missing values (apply across multiple variables):
+  -5 = Item not applicable
+  -4 = Don't know
+  -3 = Not applicable / routing skip
+  997 = Prefer not to say
+  999 = Don't know (respondent)
+
+================================================================================
+
+TARGET VARIABLE
+---------------
+
+CARTS_NET — In the last 12 months, engaged (attended OR participated) with the arts physically
+  1 = Yes
+  2 = No
+  3 = No & Missing (drop for analysis)
+  Binary classification: keep 1 and 2 only; predict under-engagement (class 2).
+
+================================================================================
+
+FEATURE VARIABLES (15)
+----------------------
+
+1. CHERVIS12_NET — Visited a heritage/historic interest site in England in the last 12 months
+   Type: Binary
+   1 = Yes
+   2 = No
+
+2. EDUCAT3 — Highest qualification level
+   Type: Ordinal
+   1 = Degree or above
+   2 = Other qualification (below degree)
+   -3 = No qualifications
+   -4 = Don't know
+   -5 = Item not applicable
+   997 = Prefer not to say
+   999 = Don't know
+
+3. NSSEC_3 — National Statistics Socio-Economic Classification (3 classes)
+   Type: Nominal
+   1 = Higher managerial, administrative and professional
+   2 = Intermediate occupations
+   3 = Routine and manual occupations
+   4 = Never worked and long-term unemployed
+   -3 = Not applicable
+
+4. FINHARD — How well managing financially these days
+   Type: Ordinal
+   1 = Living comfortably
+   2 = Doing alright
+   3 = Just about getting by
+   4 = Finding it quite difficult
+   5 = Finding it very difficult
+   -3 = Not applicable
+   -4 = Don't know
+   -5 = Item not applicable
+   997 = Prefer not to say
+
+5. WELLB1 — Overall, how satisfied are you with your life nowadays? (0-10 scale)
+   Type: Scale (0 = Not at all, 10 = Completely)
+   -4 = Don't know
+   -5 = Item not applicable
+   997 = Prefer not to say
+
+6. CINTOFT — How often do you use the internet?
+   Type: Ordinal
+   1 = Several times a day
+   2 = Once a day / almost every day
+   3 = At least once a week
+   4 = Less often than once a week
+   5 = Never use the internet
+   -3 = Not applicable
+   -4 = Don't know
+   -5 = Item not applicable
+
+7. CSMARTD_Count — Number of types of smart device in household (0-6+)
+   Type: Scale (count)
+   0 = No smart devices
+   1-6 = Count of smart device types (TV, speaker, lighting, heating, doorbell, watch, router, other)
+   -3 = Not applicable
+
+8. WELLB4 — Overall, how anxious did you feel yesterday? (0-10 scale)
+   Type: Scale (0 = Not at all anxious, 10 = Completely anxious)
+   -4 = Don't know
+   -5 = Item not applicable
+   997 = Prefer not to say
+
+9. TENHARM — ONS Harmonised tenure status
+   Type: Nominal
+   1 = Owners (own outright or with mortgage)
+   2 = Social rented (from council or housing association)
+   3 = Private rented (from private landlord or letting agency)
+   -3 = Not applicable
+
+10. LONELY — How often do you feel lonely?
+    Type: Ordinal
+    1 = Often / always
+    2 = Some of the time
+    3 = Occasionally
+    4 = Hardly ever
+    5 = Never
+    -4 = Don't know
+    -5 = Item not applicable
+    997 = Prefer not to say
+
+11. ETHNIC_NET — Ethnic group (grouped)
+    Type: Nominal
+    1 = White
+    2 = Mixed / Multiple ethnic groups
+    3 = Asian / Asian British
+    4 = Black / African / Caribbean / Black British
+    5 = Other ethnic group
+    -3 = Not applicable
+    997 = Prefer not to say
+    999 = Don't know
+
+12. emdidc19 — English Index of Multiple Deprivation 2019 (decile)
+    Type: Ordinal (area-level, LSOA-based)
+    1 = Most deprived decile
+    10 = Least deprived decile
+
+13. CULTSATIS — Satisfied with quality and variety of cultural activities near home
+    Type: Ordinal (agreement scale)
+    1 = Strongly agree
+    2 = Agree
+    3 = Neither agree nor disagree
+    4 = Disagree
+    5 = Strongly disagree
+    -3 = Not applicable (routing skip — ~71% of respondents)
+    999 = Don't know
+
+14. SEX — Respondent gender
+    Type: Nominal
+    1 = Female
+    2 = Male
+    -4 = Don't know
+    -5 = Item not applicable
+    997 = Prefer not to say
+
+15. AGEBAND — Age band
+    Type: Ordinal (15 bands)
+    1 = 16-19
+    2 = 20-24
+    3 = 25-29
+    4 = 30-34
+    5 = 35-39
+    6 = 40-44
+    7 = 45-49
+    8 = 50-54
+    9 = 55-59
+    10 = 60-64
+    11 = 65-69
+    12 = 70-74
+    13 = 75-79
+    14 = 80-84
+    15 = 85+
+    -3 = Not applicable
+    997 = Prefer not to say
+
+================================================================================
+
+NOTES
+-----
+- All 15 features have 100% non-null coverage (34,378 rows each).
+- Coded missing values (-3, -4, -5, 997, 999) are present in the data and must
+  be handled during preprocessing (drop, recode to "Unknown", or impute).
+- CULTSATIS has ~71% routing skips (-3) — only asked to a subsample.
+- CHERVIS12_NET is a behavioral variable (heritage visits), not demographic.
+  Justified for policy use case (profiling under-engaged populations).
+- emdidc19 is an area-level variable (Index of Multiple Deprivation), not
+  individual-level. Decile 1 = most deprived, 10 = least deprived.

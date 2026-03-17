@@ -2,43 +2,42 @@
 
 ## Required Input Files
 
-- `../../data/participation_2024-25_experiment.tab` — UK Participation Survey 2024-25 dataset
-- `../../data/participation_2024-25_data_dictionary_cleaned.txt` — Variable dictionary
+The following files must be available in `../../data/` (relative to this directory):
+
+1. `participation_2024-25_experiment.tab` — UK Participation Survey dataset (tab-separated)
+2. `participation_2024-25_data_dictionary_cleaned.txt` — Variable dictionary
 
 ## How to Run
 
-1. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+```bash
+cd agents/claude_code
+pip install -r requirements.txt
+jupyter nbconvert --execute --to notebook --inplace experiment_claude_code.ipynb
+```
 
-2. Run the notebook sequentially from top to bottom:
-   ```
-   jupyter notebook experiment_claude_code.ipynb
-   ```
-   Or execute non-interactively:
-   ```
-   jupyter nbconvert --to notebook --execute experiment_claude_code.ipynb
-   ```
+Or open `experiment_claude_code.ipynb` in Jupyter and run all cells sequentially.
 
-## Outputs Produced
+## Outputs
 
-| Output | Location |
-|--------|----------|
-| EDA visualisations (4 PNG files) | `evidence_claude_code/EDA_claude_code_Pics/` |
-| Baseline LR validation metrics | `evidence_claude_code/baseline_lr_validation_metrics.csv` |
-| LR tuning results | `evidence_claude_code/lr_tuning_results.csv` |
-| XGBoost tuning results | `evidence_claude_code/xgb_tuning_results.csv` |
-| Test set model comparison | `evidence_claude_code/test_model_comparison.csv` |
-| Model selection framework | `evidence_claude_code/model_selection_framework.csv` |
-| Missingness handling summary | `evidence_claude_code/missingness_handling_summary.csv` |
-| Run log | `run_log_claude_code.md` |
-| Report | `Report_claude_code.md` |
+| File | Description |
+|------|-------------|
+| `experiment_claude_code.ipynb` | Complete experiment notebook with all outputs |
+| `run_log_claude_code.md` | Step-by-step execution log |
+| `Report_claude_code.md` | Non-technical policy report (~400 words) |
+| `requirements.txt` | Python dependencies |
+| `evidence_claude_code/` | Evidence folder containing: |
+| `  EDA_claude_code_Pics/` | EDA visualisation PNGs |
+| `  baseline_lr_validation_metrics.csv` | Baseline LR validation results |
+| `  lr_tuning_results.csv` | LR grid search results |
+| `  xgb_tuning_results.csv` | XGBoost grid search results |
+| `  test_model_comparison.csv` | Final test-set model comparison |
+| `  model_selection_framework.csv` | Weighted model selection scores |
+| `  missingness_handling_summary.csv` | Missingness handling details |
 
 ## Reproducibility
 
-- **Fixed random seed**: `RANDOM_STATE = 42` used throughout for all randomised operations
-- **Stratified splits**: Train/validation/test split (70/15/15) uses stratified sampling to preserve class proportions
-- **Relative paths only**: All file references use relative paths
-- **Shared evaluation harness**: Identical metric computation applied to all models
-- **Test set discipline**: Test set used only once for final model comparison after all tuning is complete
+- **Random seed:** `RANDOM_STATE = 42` used throughout (numpy, random, sklearn, xgboost)
+- **Stratified splits:** 70/15/15 train/validation/test with stratification on target
+- **Relative paths only:** all file references use relative paths from this directory
+- **Shared evaluation harness:** identical metrics applied to all models
+- **Test set discipline:** test set used only once in Step 5.3 for final comparison

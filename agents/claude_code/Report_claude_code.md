@@ -1,29 +1,27 @@
-# Understanding Patterns of Under-Engagement in Physical Arts Participation
+# Report: Identifying Under-Engagement in Physical Arts Participation
 
 ## Purpose
 
-This analysis was conducted to help identify groups of adults in England who may face barriers to engaging with the arts physically. Rather than treating non-participation as a simple personal choice, the analysis investigates whether under-engagement follows systematic patterns across demographic, socioeconomic, and geographic factors. The aim is to support evidence-based cultural policy by highlighting where targeted outreach may be most needed.
+This analysis supports evidence-based cultural policy by identifying population groups that are less likely to engage in physical arts activities. Using data from the UK Participation Survey 2024–25, we developed predictive models to detect patterns of under-engagement across demographic, socioeconomic, digital, and geographic factors. The goal is to help arts organisations and policymakers direct outreach and resources towards groups facing potential barriers to participation.
 
 ## Data and Approach
 
-The analysis used the UK Participation Survey 2024-25, covering over 34,000 adult respondents. The dataset records whether each respondent attended or participated in the arts physically in the last 12 months, alongside ten background characteristics including age, gender, employment status, education level, financial situation, internet usage, region, urban/rural setting, household composition, and cohabitation status.
+The dataset comprises 31,351 respondents from the annual UK Participation Survey, each described by ten variables covering age, gender, employment status, education, financial circumstances, internet usage, region, urban/rural setting, household composition, and cohabitation status. The target variable indicates whether a respondent physically engaged with the arts in the previous twelve months.
 
-After cleaning the data to address survey non-response patterns, approximately 29,800 records were used for modelling. The data was split into training, validation, and test sets, and three classification models were compared: a baseline logistic regression, a tuned logistic regression, and a tuned XGBoost model.
+Approximately 8% of respondents were identified as under-engaged. After cleaning coded missing values using a tiered strategy (dropping rows for low-missingness variables, recoding to an "Unknown" category for high-missingness ones), we trained and compared three models: a baseline logistic regression, a tuned logistic regression, and a tuned XGBoost gradient-boosted tree classifier. Data was split into training (70%), validation (15%), and test (15%) sets, with the test set reserved exclusively for final evaluation.
 
-## Main Findings
+## Findings
 
-The analysis confirmed substantial class imbalance: roughly 91% of respondents had engaged with the arts, while only 9% had not. This imbalance is important context for interpreting results.
-
-On the held-out test set, the baseline logistic regression achieved the strongest overall performance, correctly identifying 67% of under-engaged individuals (recall) with a balanced accuracy of 69% and an ROC-AUC of 0.75. The tuned logistic regression performed comparably, while XGBoost showed slightly lower recall at 66%.
+All three models achieved similar performance on the held-out test set. The baseline logistic regression correctly identified 68% of under-engaged respondents (recall), with a balanced accuracy of 70.0% and an ROC-AUC of 0.77. The tuned logistic regression achieved 67% recall and 70.2% balanced accuracy. The tuned XGBoost model reached 67% recall and 69.4% balanced accuracy.
 
 ## Model Choice
 
-The baseline logistic regression was selected as the final model. It achieved the highest recall and balanced accuracy among all three models, and its transparent, interpretable structure makes it well suited for policy communication. Logistic regression allows clear identification of which factors are most associated with under-engagement, supporting actionable recommendations.
+The **Baseline LR** was selected as the final model using a weighted scoring framework that prioritises recall (identifying under-engaged groups), balanced accuracy, and interpretability. Logistic regression offers transparent coefficients that are straightforward to communicate to non-technical stakeholders, which is essential for policy applications.
 
 ## Practical Implications
 
-The model can help identify demographic and socioeconomic profiles associated with lower arts engagement. This could inform targeted outreach strategies, helping arts organisations and public bodies focus resources on communities that are less likely to participate. For example, differences across age bands, employment status, and financial hardship may point to structural barriers that policy interventions could address.
+The model can help identify demographic and socioeconomic profiles associated with lower arts participation. This information may guide targeted outreach campaigns, programme design, and resource allocation to improve inclusivity in cultural engagement.
 
 ## Limitations
 
-This analysis identifies statistical associations, not causal relationships. The model cannot determine why certain groups are less engaged, only that patterns exist. The dataset's class imbalance means that precision remains relatively low: many individuals flagged as potentially under-engaged may in fact be engaged. Additionally, the high rate of missing data for cohabitation status (71%) and education level (24%) required recoding to an "Unknown" category, which may obscure relevant patterns in these variables. Any policy decisions informed by these results should be supplemented with qualitative research and local knowledge.
+The model identifies statistical associations, not causal relationships — non-participation may reflect preferences rather than barriers. Precision for the under-engaged class remains modest, meaning some engaged individuals are incorrectly flagged. High missingness in cohabitation status and education data may limit the model's sensitivity to these factors. Results should be used alongside qualitative research and domain expertise rather than as a standalone decision tool.

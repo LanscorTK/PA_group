@@ -1,8 +1,8 @@
 pandas
 numpy
-scikit-learn
-xgboost
 matplotlib
 seaborn
-nbformat
+scikit-learn
+xgboost
 jupyter
+nbformat

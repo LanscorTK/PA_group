@@ -1,23 +1,24 @@
-# antigravity Experiment Packaging
+# PA Group: Predictive Analytics Pipeline
 
-## Required Input Files
-The experiment requires the following files to be present in the `./data/` folder relative to the notebook:
-- `participation_2024-25_experiment.tab` - The raw data file.
-- `participation_2024-25_data_dictionary_cleaned.txt` - The data dictionary.
+## Overview
+This repository contains the predictive analytics pipeline implemented for identifying physical arts under-engagement using the 2024-25 Participation dataset.
 
-## How to Run the Notebook
-1. Install dependencies: `pip install -r requirements.txt`
-2. Ensure the `./data/` folder contains the required inputs.
-3. Open `experiment_antigravity.ipynb` in Jupyter Notebook or JupyterLab.
-4. Run all cells sequentially from top to bottom (`Cell > Run All`). The notebook is designed to execute without any manual intervention.
+## Input Files Required
+- `data/participation_2024-25_experiment.tab`: The raw dataset for modeling.
+- `data/participation_2024-25_data_dictionary_cleaned.txt`: Data dictionary (reference).
 
-## Outputs Produced
-- The notebook itself contains textual outputs, printed summaries, and metrics.
-- Visual outputs (Exploratory Data Analysis charts and Confusion Matrices) are automatically saved as `.png` files into the `./evidence_antigravity/EDA_antigravity_Pics/` directory.
-- A run log documenting the experiment's step-by-step progress is maintained in `run_log_antigravity.md` in the root directory.
+## Instructions to Run the Notebook
+The main experiment is structured in a Jupyter Notebook: `experiment_antigravity.ipynb`.
+You can execute the entire pipeline sequentially from top to bottom without manual intervention:
+```bash
+jupyter nbconvert --execute --to notebook --inplace experiment_antigravity.ipynb
+```
+Or open the notebook in Jupyter/VSCode and run all cells.
 
-## Reproducibility Steps
-- A global random seed (`SEED = 42`) is explicitly defined at the beginning of the notebook.
-- This seed is passed into all stochastic algorithms (`train_test_split`, `LogisticRegression`, `XGBClassifier`) to ensure reproducible model training and evaluation.
-- Relative paths are used strictly for data ingestion and output saving to ensure cross-system compatibility.
-- Data schema checking and transparent handling of missing values (dropping non-informative codes `< 0` and `>= 997`) guarantee that the models ingest clean and consistent data.
+## Outputs
+- **`run_log_antigravity.md`**: Step-by-step progress and status tracking log of the execution.
+- **`evidence_antigravity/`**: Contains artifacts generated during the execution (e.g., EDA visualizations).
+- **In-notebook Metrics**: Output metrics such as Precision, Recall, F1-Score, PR-AUC, Confusion Matrix for Baseline LR, Tuned LR, and Tuned XGBoost.
+
+## Reproducibility
+- The global random seed is fixed (`np.random.seed(42)` and `random_state=42`) across the entire workflow (data splitting, modeling, initialization) to ensure the results remain consistent across different runs.
